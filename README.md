@@ -9,7 +9,7 @@ Exposes Gemini model calls as **Server Actions** you can drag into any ODC app o
 
 | Requirement | Details |
 |---|---|
-| .NET SDK | **6.0** (required by ODC External Libraries) |
+| .NET SDK | **8.0** (required by ODC External Libraries) |
 | Google Cloud project | Vertex AI API must be enabled |
 | Service Account | Needs the **Vertex AI User** IAM role |
 | ODC Portal access | Manage Connections / External Libraries permissions |
