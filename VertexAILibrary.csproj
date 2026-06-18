@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>VertexAILibrary</AssemblyName>
+    <RootNamespace>VertexAILibrary</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- OutSystems ODC External Libraries SDK -->
+    <PackageReference Include="OutSystems.ExternalLibraries.SDK" Version="1.3.1" />
+
+    <!-- Google Cloud Vertex AI / AI Platform -->
+    <PackageReference Include="Google.Cloud.AIPlatform.V1" Version="3.9.0" />
+
+    <!-- Google Auth for Service Account JSON authentication -->
+    <PackageReference Include="Google.Apis.Auth" Version="1.68.0" />
+
+    <!-- gRPC auth channel credentials -->
+    <PackageReference Include="Grpc.Auth" Version="2.66.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Embed the library icon (required for ODC Forge publishing) -->
+    <EmbeddedResource Include="Resources\icon.png" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,49 @@
+## .NET / C#
+bin/
+obj/
+publish/
+*.user
+*.suo
+*.vs/
+.vs/
+*.zip
+
+## Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+## NuGet
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+*.nuget.props
+*.nuget.targets
+
+## Visual Studio
+.vs/
+*.rsuser
+*.MoMo
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+*.VisualState.xml
+*.pidb
+*.svclog
+*.scc
+
+## Secrets / credentials
+appsettings.*.json
+secrets.json
+*.pfx
+*.p12
+*.pem
