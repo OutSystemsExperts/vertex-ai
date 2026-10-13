@@ -48,7 +48,19 @@ the library supports the multi-regions `eu` and `us`, and the `global` endpoint:
 Use **`eu`** when EU data residency is mandatory. **`global`** does **not** guarantee data
 residency (requests may be served from any region), so don't use it when residency is required.
 
-### 4. Build & Package for ODC
+### 4. Choose a publisher
+
+Every generation action takes a `Publisher` parameter (call `GetSupportedPublishers` for valid values):
+
+| Publisher | Models (examples) | Transport |
+|---|---|---|
+| `google` | `gemini-2.0-flash-001` | gRPC `GenerateContent` |
+| `anthropic` | `claude-sonnet-4@20250514` | `rawPredict` (Anthropic Messages format) |
+
+Model availability varies by publisher and region; Claude models must be enabled in the
+Vertex AI Model Garden for your project, and are not offered in every region.
+
+### 5. Build & Package for ODC
 
 ```bash
 # Restore packages
@@ -62,7 +74,7 @@ cd publish
 zip -r ../VertexAILibrary.zip .
 ```
 
-### 5. Upload to ODC Portal
+### 6. Upload to ODC Portal
 
 1. Open **ODC Portal → Integrate → External Libraries**
 2. Click **Upload**

@@ -8,7 +8,7 @@ namespace VertexAILibrary
     /// </summary>
     [OSInterface(
         Name = "VertexAI",
-        Description = "Integrates OutSystems ODC apps with Google Cloud Vertex AI (Gemini models). " +
+        Description = "Integrates OutSystems ODC apps with Google Cloud Vertex AI (Gemini and Anthropic Claude models). " +
                       "Supports region selection, prompt generation, and multi-turn chat.",
         IconResourceName = "VertexAILibrary.Resources.icon.png"
     )]
@@ -19,7 +19,7 @@ namespace VertexAILibrary
         // ─────────────────────────────────────────────────────────────
 
         [OSAction(
-            Description = "Sends a prompt to a Vertex AI Gemini model and returns the generated text. " +
+            Description = "Sends a prompt to a Vertex AI model (google or anthropic publisher) and returns the generated text. " +
                           "Use GetSupportedRegions to see valid region values.",
             ReturnName = "ResponseText"
         )]
@@ -38,7 +38,11 @@ namespace VertexAILibrary
                                        "Call GetSupportedRegions for the full list.")]
             string Region,
 
-            [OSParameter(Description = "Vertex AI model ID (e.g. gemini-2.0-flash-001, gemini-1.5-pro-002).")]
+            [OSParameter(Description = "Model publisher: 'google' (Gemini) or 'anthropic' (Claude). " +
+                                       "Call GetSupportedPublishers for the full list.")]
+            string Publisher,
+
+            [OSParameter(Description = "Vertex AI model ID (e.g. gemini-2.0-flash-001 for google, claude-sonnet-4@20250514 for anthropic).")]
             string ModelId,
 
             [OSParameter(Description = "The prompt text to send to the model.")]
@@ -70,6 +74,10 @@ namespace VertexAILibrary
 
             [OSParameter(Description = "GCP region that will handle the request (single region, multi-region 'eu' / 'us', or 'global' — which has no data-residency guarantee).")]
             string Region,
+
+            [OSParameter(Description = "Model publisher: 'google' (Gemini) or 'anthropic' (Claude). " +
+                                       "Call GetSupportedPublishers for the full list.")]
+            string Publisher,
 
             [OSParameter(Description = "Vertex AI model ID.")]
             string ModelId,
@@ -104,6 +112,10 @@ namespace VertexAILibrary
             [OSParameter(Description = "GCP region to test (e.g. us-central1, multi-region 'eu' / 'us', or 'global').")]
             string Region,
 
+            [OSParameter(Description = "Model publisher: 'google' (Gemini) or 'anthropic' (Claude). " +
+                                       "Call GetSupportedPublishers for the full list.")]
+            string Publisher,
+
             [OSParameter(Description = "Vertex AI model ID to use in the test call.")]
             string ModelId
         );
@@ -119,5 +131,11 @@ namespace VertexAILibrary
             ReturnName = "Regions"
         )]
         List<string> GetSupportedRegions();
+
+        [OSAction(
+            Description = "Returns the list of model publishers supported by this library (e.g. google, anthropic).",
+            ReturnName = "Publishers"
+        )]
+        List<string> GetSupportedPublishers();
     }
 }

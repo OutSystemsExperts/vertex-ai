@@ -1,7 +1,10 @@
 using Google.Apis.Auth.OAuth2;
 using Google.Cloud.AIPlatform.V1;
 using Grpc.Auth;
+using System.Net.Http.Headers;
+using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace VertexAILibrary
 {
@@ -40,6 +43,24 @@ namespace VertexAILibrary
         };
 
         // ─────────────────────────────────────────────────────────────
+        // Supported publishers
+        // ─────────────────────────────────────────────────────────────
+        private const string GooglePublisher = "google";
+        private const string AnthropicPublisher = "anthropic";
+
+        private static readonly string[] _supportedPublishers = { GooglePublisher, AnthropicPublisher };
+
+        private static readonly HttpClient _httpClient = new() { Timeout = TimeSpan.FromSeconds(90) };
+
+        // ─────────────────────────────────────────────────────────────
+        // GetSupportedPublishers
+        // ─────────────────────────────────────────────────────────────
+        public List<string> GetSupportedPublishers()
+        {
+            return new List<string>(_supportedPublishers);
+        }
+
+        // ─────────────────────────────────────────────────────────────
         // GetSupportedRegions
         // ─────────────────────────────────────────────────────────────
         public List<string> GetSupportedRegions()
@@ -54,31 +75,14 @@ namespace VertexAILibrary
             string ProjectId,
             GCPServiceAccount ServiceAccount,
             string Region,
+            string Publisher,
             string ModelId,
             string Prompt,
             int    MaxOutputTokens,
             decimal Temperature)
         {
-            ValidateRegion(Region);
-
-            var client = BuildClient(ServiceAccount, Region);
-
-            var request = new GenerateContentRequest
-            {
-                Model            = BuildModelPath(ProjectId, Region, ModelId),
-                GenerationConfig = BuildGenerationConfig(MaxOutputTokens, Temperature),
-                Contents =
-                {
-                    new Content
-                    {
-                        Role  = "USER",
-                        Parts = { new Part { Text = Prompt } }
-                    }
-                }
-            };
-
-            var response = client.GenerateContent(request);
-            return ExtractText(response);
+            return Generate(ProjectId, ServiceAccount, Region, Publisher, ModelId,
+                null, Prompt, MaxOutputTokens, Temperature);
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -88,35 +92,14 @@ namespace VertexAILibrary
             string ProjectId,
             GCPServiceAccount ServiceAccount,
             string Region,
+            string Publisher,
             string ModelId,
             string SystemInstruction,
             string UserPrompt,
             int    MaxOutputTokens)
         {
-            ValidateRegion(Region);
-
-            var client = BuildClient(ServiceAccount, Region);
-
-            var request = new GenerateContentRequest
-            {
-                Model            = BuildModelPath(ProjectId, Region, ModelId),
-                GenerationConfig = BuildGenerationConfig(MaxOutputTokens, -1m),
-                SystemInstruction = new Content
-                {
-                    Parts = { new Part { Text = SystemInstruction } }
-                },
-                Contents =
-                {
-                    new Content
-                    {
-                        Role  = "USER",
-                        Parts = { new Part { Text = UserPrompt } }
-                    }
-                }
-            };
-
-            var response = client.GenerateContent(request);
-            return ExtractText(response);
+            return Generate(ProjectId, ServiceAccount, Region, Publisher, ModelId,
+                SystemInstruction, UserPrompt, MaxOutputTokens, -1m);
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -126,29 +109,13 @@ namespace VertexAILibrary
             string ProjectId,
             GCPServiceAccount ServiceAccount,
             string Region,
+            string Publisher,
             string ModelId)
         {
             try
             {
-                ValidateRegion(Region);
-
-                var client = BuildClient(ServiceAccount, Region);
-
-                var request = new GenerateContentRequest
-                {
-                    Model            = BuildModelPath(ProjectId, Region, ModelId),
-                    GenerationConfig = BuildGenerationConfig(16, -1m),
-                    Contents =
-                    {
-                        new Content
-                        {
-                            Role  = "USER",
-                            Parts = { new Part { Text = "Reply with the single word: OK" } }
-                        }
-                    }
-                };
-
-                client.GenerateContent(request);
+                Generate(ProjectId, ServiceAccount, Region, Publisher, ModelId,
+                    null, "Reply with the single word: OK", 16, -1m);
 
                 return "OK";
             }
@@ -164,10 +131,140 @@ namespace VertexAILibrary
         // ─────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Builds a PredictionServiceClient authenticated with a Service Account
-        /// JSON key and pointed at the correct regional endpoint.
+        /// Validates the inputs and sends the prompt through the transport required by the publisher:
+        /// gRPC GenerateContent for google, rawPredict (Anthropic Messages format) for anthropic.
         /// </summary>
-        private static PredictionServiceClient BuildClient(GCPServiceAccount account, string region)
+        private string Generate(
+            string projectId,
+            GCPServiceAccount account,
+            string region,
+            string publisher,
+            string modelId,
+            string? systemInstruction,
+            string prompt,
+            int maxOutputTokens,
+            decimal temperature)
+        {
+            ValidateRegion(region);
+            ValidatePublisher(publisher);
+
+            return publisher == AnthropicPublisher
+                ? GenerateAnthropic(projectId, account, region, modelId, systemInstruction, prompt, maxOutputTokens, temperature)
+                : GenerateGoogle(projectId, account, region, modelId, systemInstruction, prompt, maxOutputTokens, temperature);
+        }
+
+        private static string GenerateGoogle(
+            string projectId,
+            GCPServiceAccount account,
+            string region,
+            string modelId,
+            string? systemInstruction,
+            string prompt,
+            int maxOutputTokens,
+            decimal temperature)
+        {
+            var client = BuildClient(account, region);
+
+            var request = new GenerateContentRequest
+            {
+                Model            = BuildModelPath(projectId, region, GooglePublisher, modelId),
+                GenerationConfig = BuildGenerationConfig(maxOutputTokens, temperature),
+                Contents =
+                {
+                    new Content
+                    {
+                        Role  = "USER",
+                        Parts = { new Part { Text = prompt } }
+                    }
+                }
+            };
+
+            if (!string.IsNullOrEmpty(systemInstruction))
+                request.SystemInstruction = new Content { Parts = { new Part { Text = systemInstruction } } };
+
+            return ExtractText(client.GenerateContent(request));
+        }
+
+        private static string GenerateAnthropic(
+            string projectId,
+            GCPServiceAccount account,
+            string region,
+            string modelId,
+            string? systemInstruction,
+            string prompt,
+            int maxOutputTokens,
+            decimal temperature)
+        {
+            var url = $"https://{BuildEndpoint(region)}/v1/" +
+                      $"{BuildModelPath(projectId, region, AnthropicPublisher, modelId)}:rawPredict";
+
+            var token = BuildCredential(account).UnderlyingCredential
+                .GetAccessTokenForRequestAsync().GetAwaiter().GetResult();
+
+            using var request = new HttpRequestMessage(HttpMethod.Post, url)
+            {
+                Content = new StringContent(
+                    BuildAnthropicRequestBody(systemInstruction, prompt, maxOutputTokens, temperature),
+                    Encoding.UTF8,
+                    "application/json")
+            };
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            using var response = _httpClient.SendAsync(request).GetAwaiter().GetResult();
+            var body = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+
+            if (!response.IsSuccessStatusCode)
+                throw new InvalidOperationException(
+                    $"Vertex AI (anthropic) returned {(int)response.StatusCode}: {body}");
+
+            return ExtractAnthropicText(body);
+        }
+
+        /// <summary>
+        /// Builds the Anthropic Messages request body expected by Vertex AI rawPredict.
+        /// </summary>
+        internal static string BuildAnthropicRequestBody(
+            string? systemInstruction, string prompt, int maxOutputTokens, decimal temperature)
+        {
+            var body = new JsonObject
+            {
+                ["anthropic_version"] = "vertex-2023-10-16",
+                ["max_tokens"]        = maxOutputTokens > 0 ? maxOutputTokens : 1024,
+                ["temperature"]       = temperature >= 0m ? (double)temperature : 0.4,
+                ["messages"]          = new JsonArray(new JsonObject
+                {
+                    ["role"]    = "user",
+                    ["content"] = prompt
+                })
+            };
+
+            if (!string.IsNullOrEmpty(systemInstruction))
+                body["system"] = systemInstruction;
+
+            return body.ToJsonString();
+        }
+
+        /// <summary>
+        /// Pulls the first text block from an Anthropic Messages response.
+        /// </summary>
+        internal static string ExtractAnthropicText(string responseBody)
+        {
+            using var doc = JsonDocument.Parse(responseBody);
+
+            if (doc.RootElement.TryGetProperty("content", out var content)
+                && content.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var block in content.EnumerateArray())
+                {
+                    if (block.TryGetProperty("text", out var text))
+                        return text.GetString() ?? string.Empty;
+                }
+            }
+
+            throw new InvalidOperationException("Vertex AI (anthropic) returned no text content.");
+        }
+
+        private static GoogleCredential BuildCredential(GCPServiceAccount account)
         {
             var keyData = new Dictionary<string, string>
             {
@@ -178,11 +275,18 @@ namespace VertexAILibrary
                 ["token_uri"]      = "https://oauth2.googleapis.com/token"
             };
 
-            var credential = GoogleCredential
+            return GoogleCredential
                 .FromJson(JsonSerializer.Serialize(keyData))
                 .CreateScoped("https://www.googleapis.com/auth/cloud-platform");
+        }
 
-            var channelCredentials = credential.ToChannelCredentials();
+        /// <summary>
+        /// Builds a PredictionServiceClient authenticated with a Service Account
+        /// JSON key and pointed at the correct regional endpoint.
+        /// </summary>
+        private static PredictionServiceClient BuildClient(GCPServiceAccount account, string region)
+        {
+            var channelCredentials = BuildCredential(account).ToChannelCredentials();
 
             return new PredictionServiceClientBuilder
             {
@@ -206,11 +310,11 @@ namespace VertexAILibrary
 
         /// <summary>
         /// Composes the full Vertex AI model resource path.
-        /// Format: projects/{project}/locations/{region}/publishers/google/models/{model}
+        /// Format: projects/{project}/locations/{region}/publishers/{publisher}/models/{model}
         /// where {region} is a single region (e.g. europe-west4) a multi-region (eu, us) or "global".
         /// </summary>
-        private static string BuildModelPath(string projectId, string region, string modelId)
-            => $"projects/{projectId}/locations/{region}/publishers/google/models/{modelId}";
+        internal static string BuildModelPath(string projectId, string region, string publisher, string modelId)
+            => $"projects/{projectId}/locations/{region}/publishers/{publisher}/models/{modelId}";
 
         /// <summary>
         /// Builds a GenerationConfig from the supplied parameters.
@@ -245,6 +349,17 @@ namespace VertexAILibrary
                 throw new InvalidOperationException("Vertex AI candidate has no content parts.");
 
             return candidate.Content.Parts[0].Text ?? string.Empty;
+        }
+
+        /// <summary>
+        /// Throws an ArgumentException if the publisher is not in the supported list.
+        /// </summary>
+        private static void ValidatePublisher(string publisher)
+        {
+            if (!Array.Exists(_supportedPublishers, p => p == publisher))
+                throw new ArgumentException(
+                    $"Publisher '{publisher}' is not supported. " +
+                    $"Call GetSupportedPublishers() to see the full list.");
         }
 
         /// <summary>
