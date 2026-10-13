@@ -17,6 +17,9 @@ namespace VertexAILibrary
         // ─────────────────────────────────────────────────────────────
         private static readonly string[] _supportedRegions =
         {
+            "eu",                   // EU multi-region — guarantees EU data residency (aiplatform.eu.rep.googleapis.com)
+            "us",                   // US multi-region (aiplatform.us.rep.googleapis.com)
+            "global",               // Global endpoint (aiplatform.googleapis.com) — NO data-residency guarantee
             "us-central1",          // Iowa — default, lowest latency for US
             "us-east4",             // N. Virginia
             "us-west1",             // Oregon
@@ -181,19 +184,30 @@ namespace VertexAILibrary
 
             var channelCredentials = credential.ToChannelCredentials();
 
-            // Each region has its own Vertex AI endpoint
-            var endpoint = $"{region}-aiplatform.googleapis.com";
-
             return new PredictionServiceClientBuilder
             {
-                Endpoint           = endpoint,
+                Endpoint           = BuildEndpoint(region),
                 ChannelCredentials = channelCredentials
             }.Build();
         }
 
         /// <summary>
+        /// Resolves the Vertex AI host for a region. Multi-regions ("eu", "us") use the
+        /// regional endpoint pattern (rep), which guarantees data residency; single regions
+        /// use the {region}-aiplatform host. "global" uses the bare aiplatform host and
+        /// offers no data-residency guarantee.
+        /// </summary>
+        internal static string BuildEndpoint(string region)
+            => region is "eu" or "us"
+                ? $"aiplatform.{region}.rep.googleapis.com"
+                : region == "global"
+                    ? "aiplatform.googleapis.com"
+                    : $"{region}-aiplatform.googleapis.com";
+
+        /// <summary>
         /// Composes the full Vertex AI model resource path.
         /// Format: projects/{project}/locations/{region}/publishers/google/models/{model}
+        /// where {region} is a single region (e.g. europe-west4) a multi-region (eu, us) or "global".
         /// </summary>
         private static string BuildModelPath(string projectId, string region, string modelId)
             => $"projects/{projectId}/locations/{region}/publishers/google/models/{modelId}";
@@ -237,7 +251,8 @@ namespace VertexAILibrary
         /// Throws an ArgumentException if the region is not in the supported list.
         /// </summary>
         private static void ValidateRegion(string region)
-        {            if (!Array.Exists(_supportedRegions, r => r == region))
+        {
+            if (!Array.Exists(_supportedRegions, r => r == region))
                 throw new ArgumentException(
                     $"Region '{region}' is not supported. " +
                     $"Call GetSupportedRegions() to see the full list.");
