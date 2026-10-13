@@ -33,7 +33,22 @@ Never hard-code it in your app.
 gcloud services enable aiplatform.googleapis.com
 ```
 
-### 3. Build & Package for ODC
+### 3. Choose a region (data residency)
+
+Call `GetSupportedRegions` to list valid values. Besides single regions (e.g. `europe-west4`),
+the library supports the multi-regions `eu` and `us`, and the `global` endpoint:
+
+| Region | Host | Request path |
+|---|---|---|
+| `europe-west4` | `europe-west4-aiplatform.googleapis.com` | `projects/<PROJECT_ID>/locations/europe-west4/...` |
+| `eu` | `aiplatform.eu.rep.googleapis.com` | `projects/<PROJECT_ID>/locations/eu/...` |
+| `us` | `aiplatform.us.rep.googleapis.com` | `projects/<PROJECT_ID>/locations/us/...` |
+| `global` | `aiplatform.googleapis.com` | `projects/<PROJECT_ID>/locations/global/...` |
+
+Use **`eu`** when EU data residency is mandatory. **`global`** does **not** guarantee data
+residency (requests may be served from any region), so don't use it when residency is required.
+
+### 4. Build & Package for ODC
 
 ```bash
 # Restore packages
@@ -47,7 +62,7 @@ cd publish
 zip -r ../VertexAILibrary.zip .
 ```
 
-### 4. Upload to ODC Portal
+### 5. Upload to ODC Portal
 
 1. Open **ODC Portal → Integrate → External Libraries**
 2. Click **Upload**

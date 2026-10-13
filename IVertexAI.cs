@@ -32,7 +32,9 @@ namespace VertexAILibrary
             GCPServiceAccount ServiceAccount,
 
             [OSParameter(Description = "GCP region that will handle the request " +
-                                       "(e.g. us-central1, europe-west4, asia-northeast1). " +
+                                       "(e.g. us-central1, europe-west4, asia-northeast1), or the " +
+                                       "multi-region 'eu' / 'us' (use 'eu' for mandatory EU data residency), or " +
+                                       "'global' (no data-residency guarantee). " +
                                        "Call GetSupportedRegions for the full list.")]
             string Region,
 
@@ -66,7 +68,7 @@ namespace VertexAILibrary
             [OSParameter(Description = "Google Cloud service account credentials.")]
             GCPServiceAccount ServiceAccount,
 
-            [OSParameter(Description = "GCP region that will handle the request.")]
+            [OSParameter(Description = "GCP region that will handle the request (single region, multi-region 'eu' / 'us', or 'global' — which has no data-residency guarantee).")]
             string Region,
 
             [OSParameter(Description = "Vertex AI model ID.")]
@@ -99,7 +101,7 @@ namespace VertexAILibrary
             [OSParameter(Description = "Google Cloud service account credentials.")]
             GCPServiceAccount ServiceAccount,
 
-            [OSParameter(Description = "GCP region to test (e.g. us-central1).")]
+            [OSParameter(Description = "GCP region to test (e.g. us-central1, multi-region 'eu' / 'us', or 'global').")]
             string Region,
 
             [OSParameter(Description = "Vertex AI model ID to use in the test call.")]
@@ -112,7 +114,8 @@ namespace VertexAILibrary
 
         [OSAction(
             Description = "Returns the list of GCP regions supported by this library. " +
-                          "Use this to populate a region-selection dropdown in your ODC app.",
+                          "Use this to populate a region-selection dropdown in your ODC app. " +
+                          "Note: 'global' does not guarantee data residency; use 'eu' when EU residency is required.",
             ReturnName = "Regions"
         )]
         List<string> GetSupportedRegions();
