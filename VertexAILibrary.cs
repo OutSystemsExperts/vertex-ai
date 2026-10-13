@@ -149,7 +149,7 @@ namespace VertexAILibrary
             ValidatePublisher(publisher);
 
             return publisher == AnthropicPublisher
-                ? GenerateAnthropic(projectId, account, region, modelId, systemInstruction, prompt, maxOutputTokens, temperature)
+                ? GenerateAnthropic(projectId, account, region, modelId, systemInstruction, prompt, maxOutputTokens)
                 : GenerateGoogle(projectId, account, region, modelId, systemInstruction, prompt, maxOutputTokens, temperature);
         }
 
@@ -192,8 +192,7 @@ namespace VertexAILibrary
             string modelId,
             string? systemInstruction,
             string prompt,
-            int maxOutputTokens,
-            decimal temperature)
+            int maxOutputTokens)
         {
             var url = $"https://{BuildEndpoint(region)}/v1/" +
                       $"{BuildModelPath(projectId, region, AnthropicPublisher, modelId)}:rawPredict";
@@ -204,7 +203,7 @@ namespace VertexAILibrary
             using var request = new HttpRequestMessage(HttpMethod.Post, url)
             {
                 Content = new StringContent(
-                    BuildAnthropicRequestBody(systemInstruction, prompt, maxOutputTokens, temperature),
+                    BuildAnthropicRequestBody(systemInstruction, prompt, maxOutputTokens),
                     Encoding.UTF8,
                     "application/json")
             };
@@ -224,13 +223,12 @@ namespace VertexAILibrary
         /// Builds the Anthropic Messages request body expected by Vertex AI rawPredict.
         /// </summary>
         internal static string BuildAnthropicRequestBody(
-            string? systemInstruction, string prompt, int maxOutputTokens, decimal temperature)
+            string? systemInstruction, string prompt, int maxOutputTokens)
         {
             var body = new JsonObject
             {
                 ["anthropic_version"] = "vertex-2023-10-16",
                 ["max_tokens"]        = maxOutputTokens > 0 ? maxOutputTokens : 1024,
-                ["temperature"]       = temperature >= 0m ? (double)temperature : 0.4,
                 ["messages"]          = new JsonArray(new JsonObject
                 {
                     ["role"]    = "user",

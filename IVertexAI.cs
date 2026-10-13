@@ -52,7 +52,8 @@ namespace VertexAILibrary
             int MaxOutputTokens,
 
             [OSParameter(Description = "Sampling temperature between 0 and 1. " +
-                                       "Lower values are more deterministic. Pass -1 to use the default (0.4).")]
+                                       "Lower values are more deterministic. Pass -1 to use the default (0.4 for Google models; " +
+                                       "not sent for Anthropic models, since newer Claude models reject it).")]
             decimal Temperature
         );
 
