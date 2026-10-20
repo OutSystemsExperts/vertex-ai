@@ -80,22 +80,12 @@ namespace VertexAILibrary
             string Prompt,
             int    MaxOutputTokens,
             decimal Temperature,
-            out int InputTokens,
-            out int OutputTokens,
-            out int TotalTokens,
-            out int CachedInputTokens,
-            out int CacheCreationInputTokens,
-            out int ThinkingTokens)
+            out TokenUsage Usage)
         {
             var (text, usage) = Generate(ProjectId, ServiceAccount, Region, Publisher, ModelId,
                 null, Prompt, MaxOutputTokens, Temperature);
 
-            InputTokens              = usage.Input;
-            OutputTokens             = usage.Output;
-            TotalTokens              = usage.Total;
-            CachedInputTokens        = usage.CachedInput;
-            CacheCreationInputTokens = usage.CacheCreationInput;
-            ThinkingTokens           = usage.Thinking;
+            Usage = usage;
             return text;
         }
 
@@ -111,22 +101,12 @@ namespace VertexAILibrary
             string SystemInstruction,
             string UserPrompt,
             int    MaxOutputTokens,
-            out int InputTokens,
-            out int OutputTokens,
-            out int TotalTokens,
-            out int CachedInputTokens,
-            out int CacheCreationInputTokens,
-            out int ThinkingTokens)
+            out TokenUsage Usage)
         {
             var (text, usage) = Generate(ProjectId, ServiceAccount, Region, Publisher, ModelId,
                 SystemInstruction, UserPrompt, MaxOutputTokens, -1m);
 
-            InputTokens              = usage.Input;
-            OutputTokens             = usage.Output;
-            TotalTokens              = usage.Total;
-            CachedInputTokens        = usage.CachedInput;
-            CacheCreationInputTokens = usage.CacheCreationInput;
-            ThinkingTokens           = usage.Thinking;
+            Usage = usage;
             return text;
         }
 
@@ -181,10 +161,6 @@ namespace VertexAILibrary
                 : GenerateGoogle(projectId, account, region, modelId, systemInstruction, prompt, maxOutputTokens, temperature);
         }
 
-        /// <summary>Token counts normalised across publishers.</summary>
-        internal readonly record struct TokenUsage(
-            int Input, int Output, int Total, int CachedInput, int CacheCreationInput, int Thinking);
-
         private static (string Text, TokenUsage Usage) GenerateGoogle(
             string projectId,
             GCPServiceAccount account,
@@ -218,14 +194,14 @@ namespace VertexAILibrary
             var meta = response.UsageMetadata;
             var usage = meta == null
                 ? default
-                : new TokenUsage(
-                    meta.PromptTokenCount,
-                    meta.CandidatesTokenCount,
-                    meta.TotalTokenCount,
-                    0,
-                    0,
+                : new TokenUsage
+                {
+                    InputTokens  = meta.PromptTokenCount,
+                    OutputTokens = meta.CandidatesTokenCount,
+                    TotalTokens  = meta.TotalTokenCount,
                     // The SDK doesn't expose thoughtsTokenCount; thinking tokens are the remainder of the total.
-                    Math.Max(0, meta.TotalTokenCount - meta.PromptTokenCount - meta.CandidatesTokenCount));
+                    ThinkingTokens = Math.Max(0, meta.TotalTokenCount - meta.PromptTokenCount - meta.CandidatesTokenCount)
+                };
 
             return (ExtractText(response), usage);
         }
@@ -283,8 +259,14 @@ namespace VertexAILibrary
             var cacheCreation = Read("cache_creation_input_tokens");
             var cacheRead     = Read("cache_read_input_tokens");
 
-            return new TokenUsage(input, output, input + output + cacheCreation + cacheRead,
-                cacheRead, cacheCreation, 0);
+            return new TokenUsage
+            {
+                InputTokens              = input,
+                OutputTokens             = output,
+                TotalTokens              = input + output + cacheCreation + cacheRead,
+                CachedInputTokens        = cacheRead,
+                CacheCreationInputTokens = cacheCreation
+            };
         }
 
         /// <summary>
