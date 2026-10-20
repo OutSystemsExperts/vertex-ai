@@ -79,10 +79,14 @@ namespace VertexAILibrary
             string ModelId,
             string Prompt,
             int    MaxOutputTokens,
-            decimal Temperature)
+            decimal Temperature,
+            out TokenUsage Usage)
         {
-            return Generate(ProjectId, ServiceAccount, Region, Publisher, ModelId,
+            var (text, usage) = Generate(ProjectId, ServiceAccount, Region, Publisher, ModelId,
                 null, Prompt, MaxOutputTokens, Temperature);
+
+            Usage = usage;
+            return text;
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -96,10 +100,14 @@ namespace VertexAILibrary
             string ModelId,
             string SystemInstruction,
             string UserPrompt,
-            int    MaxOutputTokens)
+            int    MaxOutputTokens,
+            out TokenUsage Usage)
         {
-            return Generate(ProjectId, ServiceAccount, Region, Publisher, ModelId,
+            var (text, usage) = Generate(ProjectId, ServiceAccount, Region, Publisher, ModelId,
                 SystemInstruction, UserPrompt, MaxOutputTokens, -1m);
+
+            Usage = usage;
+            return text;
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -134,7 +142,7 @@ namespace VertexAILibrary
         /// Validates the inputs and sends the prompt through the transport required by the publisher:
         /// gRPC GenerateContent for google, rawPredict (Anthropic Messages format) for anthropic.
         /// </summary>
-        private string Generate(
+        private (string Text, TokenUsage Usage) Generate(
             string projectId,
             GCPServiceAccount account,
             string region,
@@ -153,7 +161,7 @@ namespace VertexAILibrary
                 : GenerateGoogle(projectId, account, region, modelId, systemInstruction, prompt, maxOutputTokens, temperature);
         }
 
-        private static string GenerateGoogle(
+        private static (string Text, TokenUsage Usage) GenerateGoogle(
             string projectId,
             GCPServiceAccount account,
             string region,
@@ -182,10 +190,23 @@ namespace VertexAILibrary
             if (!string.IsNullOrEmpty(systemInstruction))
                 request.SystemInstruction = new Content { Parts = { new Part { Text = systemInstruction } } };
 
-            return ExtractText(client.GenerateContent(request));
+            var response = client.GenerateContent(request);
+            var meta = response.UsageMetadata;
+            var usage = meta == null
+                ? default
+                : new TokenUsage
+                {
+                    InputTokens  = meta.PromptTokenCount,
+                    OutputTokens = meta.CandidatesTokenCount,
+                    TotalTokens  = meta.TotalTokenCount,
+                    // The SDK doesn't expose thoughtsTokenCount; thinking tokens are the remainder of the total.
+                    ThinkingTokens = Math.Max(0, meta.TotalTokenCount - meta.PromptTokenCount - meta.CandidatesTokenCount)
+                };
+
+            return (ExtractText(response), usage);
         }
 
-        private static string GenerateAnthropic(
+        private static (string Text, TokenUsage Usage) GenerateAnthropic(
             string projectId,
             GCPServiceAccount account,
             string region,
@@ -216,7 +237,36 @@ namespace VertexAILibrary
                 throw new InvalidOperationException(
                     $"Vertex AI (anthropic) returned {(int)response.StatusCode}: {body}");
 
-            return ExtractAnthropicText(body);
+            return (ExtractAnthropicText(body), ExtractAnthropicUsage(body));
+        }
+
+        /// <summary>
+        /// Reads the token counts from an Anthropic Messages response; missing fields count as 0.
+        /// </summary>
+        internal static TokenUsage ExtractAnthropicUsage(string responseBody)
+        {
+            using var doc = JsonDocument.Parse(responseBody);
+
+            if (!doc.RootElement.TryGetProperty("usage", out var usage)
+                || usage.ValueKind != JsonValueKind.Object)
+                return default;
+
+            int Read(string name) =>
+                usage.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetInt32() : 0;
+
+            var input         = Read("input_tokens");
+            var output        = Read("output_tokens");
+            var cacheCreation = Read("cache_creation_input_tokens");
+            var cacheRead     = Read("cache_read_input_tokens");
+
+            return new TokenUsage
+            {
+                InputTokens              = input,
+                OutputTokens             = output,
+                TotalTokens              = input + output + cacheCreation + cacheRead,
+                CachedInputTokens        = cacheRead,
+                CacheCreationInputTokens = cacheCreation
+            };
         }
 
         /// <summary>

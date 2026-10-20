@@ -54,7 +54,10 @@ namespace VertexAILibrary
             [OSParameter(Description = "Sampling temperature between 0 and 1. " +
                                        "Lower values are more deterministic. Pass -1 to use the default (0.4 for Google models; " +
                                        "not sent for Anthropic models, since newer Claude models reject it).")]
-            decimal Temperature
+            decimal Temperature,
+
+            [OSParameter(Description = "Token counts for the call (input, output, total, cache and thinking tokens).")]
+            out TokenUsage Usage
         );
 
         // ─────────────────────────────────────────────────────────────
@@ -91,7 +94,10 @@ namespace VertexAILibrary
             string UserPrompt,
 
             [OSParameter(Description = "Maximum number of output tokens. Pass 0 to use the default (1024).")]
-            int MaxOutputTokens
+            int MaxOutputTokens,
+
+            [OSParameter(Description = "Token counts for the call (input, output, total, cache and thinking tokens).")]
+            out TokenUsage Usage
         );
 
         // ─────────────────────────────────────────────────────────────
