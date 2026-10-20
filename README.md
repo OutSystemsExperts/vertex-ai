@@ -60,7 +60,20 @@ Every generation action takes a `Publisher` parameter (call `GetSupportedPublish
 Model availability varies by publisher and region; Claude models must be enabled in the
 Vertex AI Model Garden for your project, and are not offered in every region.
 
-### 5. Build & Package for ODC
+### Token usage outputs
+
+`GenerateContent` and `GenerateContentWithSystemPrompt` return the token usage of the call as extra outputs, for cost allocation:
+
+| Output | Google (`usageMetadata`) | Anthropic (`usage`) |
+|---|---|---|
+| `InputTokens` | `promptTokenCount` | `input_tokens` |
+| `OutputTokens` | `candidatesTokenCount` | `output_tokens` |
+| `CachedInputTokens` | 0 (not exposed by the SDK) | `cache_read_input_tokens` |
+| `CacheCreationInputTokens` | 0 | `cache_creation_input_tokens` |
+| `ThinkingTokens` | `totalTokenCount` − `promptTokenCount` − `candidatesTokenCount` | 0 (included in `OutputTokens`) |
+| `TotalTokens` | `totalTokenCount` | sum of all of the above input/output counts |
+
+## 5. Build & Package for ODC
 
 ```bash
 # Restore packages

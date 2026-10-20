@@ -79,10 +79,24 @@ namespace VertexAILibrary
             string ModelId,
             string Prompt,
             int    MaxOutputTokens,
-            decimal Temperature)
+            decimal Temperature,
+            out int InputTokens,
+            out int OutputTokens,
+            out int TotalTokens,
+            out int CachedInputTokens,
+            out int CacheCreationInputTokens,
+            out int ThinkingTokens)
         {
-            return Generate(ProjectId, ServiceAccount, Region, Publisher, ModelId,
+            var (text, usage) = Generate(ProjectId, ServiceAccount, Region, Publisher, ModelId,
                 null, Prompt, MaxOutputTokens, Temperature);
+
+            InputTokens              = usage.Input;
+            OutputTokens             = usage.Output;
+            TotalTokens              = usage.Total;
+            CachedInputTokens        = usage.CachedInput;
+            CacheCreationInputTokens = usage.CacheCreationInput;
+            ThinkingTokens           = usage.Thinking;
+            return text;
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -96,10 +110,24 @@ namespace VertexAILibrary
             string ModelId,
             string SystemInstruction,
             string UserPrompt,
-            int    MaxOutputTokens)
+            int    MaxOutputTokens,
+            out int InputTokens,
+            out int OutputTokens,
+            out int TotalTokens,
+            out int CachedInputTokens,
+            out int CacheCreationInputTokens,
+            out int ThinkingTokens)
         {
-            return Generate(ProjectId, ServiceAccount, Region, Publisher, ModelId,
+            var (text, usage) = Generate(ProjectId, ServiceAccount, Region, Publisher, ModelId,
                 SystemInstruction, UserPrompt, MaxOutputTokens, -1m);
+
+            InputTokens              = usage.Input;
+            OutputTokens             = usage.Output;
+            TotalTokens              = usage.Total;
+            CachedInputTokens        = usage.CachedInput;
+            CacheCreationInputTokens = usage.CacheCreationInput;
+            ThinkingTokens           = usage.Thinking;
+            return text;
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -134,7 +162,7 @@ namespace VertexAILibrary
         /// Validates the inputs and sends the prompt through the transport required by the publisher:
         /// gRPC GenerateContent for google, rawPredict (Anthropic Messages format) for anthropic.
         /// </summary>
-        private string Generate(
+        private (string Text, TokenUsage Usage) Generate(
             string projectId,
             GCPServiceAccount account,
             string region,
@@ -153,7 +181,11 @@ namespace VertexAILibrary
                 : GenerateGoogle(projectId, account, region, modelId, systemInstruction, prompt, maxOutputTokens, temperature);
         }
 
-        private static string GenerateGoogle(
+        /// <summary>Token counts normalised across publishers.</summary>
+        internal readonly record struct TokenUsage(
+            int Input, int Output, int Total, int CachedInput, int CacheCreationInput, int Thinking);
+
+        private static (string Text, TokenUsage Usage) GenerateGoogle(
             string projectId,
             GCPServiceAccount account,
             string region,
@@ -182,10 +214,23 @@ namespace VertexAILibrary
             if (!string.IsNullOrEmpty(systemInstruction))
                 request.SystemInstruction = new Content { Parts = { new Part { Text = systemInstruction } } };
 
-            return ExtractText(client.GenerateContent(request));
+            var response = client.GenerateContent(request);
+            var meta = response.UsageMetadata;
+            var usage = meta == null
+                ? default
+                : new TokenUsage(
+                    meta.PromptTokenCount,
+                    meta.CandidatesTokenCount,
+                    meta.TotalTokenCount,
+                    0,
+                    0,
+                    // The SDK doesn't expose thoughtsTokenCount; thinking tokens are the remainder of the total.
+                    Math.Max(0, meta.TotalTokenCount - meta.PromptTokenCount - meta.CandidatesTokenCount));
+
+            return (ExtractText(response), usage);
         }
 
-        private static string GenerateAnthropic(
+        private static (string Text, TokenUsage Usage) GenerateAnthropic(
             string projectId,
             GCPServiceAccount account,
             string region,
@@ -216,7 +261,30 @@ namespace VertexAILibrary
                 throw new InvalidOperationException(
                     $"Vertex AI (anthropic) returned {(int)response.StatusCode}: {body}");
 
-            return ExtractAnthropicText(body);
+            return (ExtractAnthropicText(body), ExtractAnthropicUsage(body));
+        }
+
+        /// <summary>
+        /// Reads the token counts from an Anthropic Messages response; missing fields count as 0.
+        /// </summary>
+        internal static TokenUsage ExtractAnthropicUsage(string responseBody)
+        {
+            using var doc = JsonDocument.Parse(responseBody);
+
+            if (!doc.RootElement.TryGetProperty("usage", out var usage)
+                || usage.ValueKind != JsonValueKind.Object)
+                return default;
+
+            int Read(string name) =>
+                usage.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetInt32() : 0;
+
+            var input         = Read("input_tokens");
+            var output        = Read("output_tokens");
+            var cacheCreation = Read("cache_creation_input_tokens");
+            var cacheRead     = Read("cache_read_input_tokens");
+
+            return new TokenUsage(input, output, input + output + cacheCreation + cacheRead,
+                cacheRead, cacheCreation, 0);
         }
 
         /// <summary>
