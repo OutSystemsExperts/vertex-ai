@@ -27,4 +27,9 @@
     <EmbeddedResource Include="Resources\icon.png" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Lets the unit tests reach the internal request builders and validators -->
+    <InternalsVisibleTo Include="VertexAILibrary.UnitTests" />
+  </ItemGroup>
+
 </Project>
