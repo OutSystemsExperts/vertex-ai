@@ -47,3 +47,4 @@ secrets.json
 *.pfx
 *.p12
 *.pem
+/specs
