@@ -13,8 +13,8 @@ namespace VertexAILibrary.UnitTests
 
         private static readonly GCPServiceAccount DummyAccount = new()
         {
-            ClientEmail  = "dummy@example.iam.gserviceaccount.com",
-            PrivateKey   = "not-a-key",
+            ClientEmail = "dummy@example.iam.gserviceaccount.com",
+            PrivateKey = "not-a-key",
             PrivateKeyId = "dummy"
         };
 
@@ -30,9 +30,9 @@ namespace VertexAILibrary.UnitTests
         private static FileAction ActionFor(string name)
             => name == "WithFiles"
                 ? (region, publisher, prompt, files) => new Sut().GenerateContentWithFiles(
-                    "p", DummyAccount, region, publisher, "m", prompt, files, 0, -1m, out _)
+                    "p", DummyAccount, region, publisher, "m", prompt, files, 0, -1m, out _, out _)
                 : (region, publisher, prompt, files) => new Sut().GenerateContentWithSystemPromptAndFiles(
-                    "p", DummyAccount, region, publisher, "m", "sys", prompt, files, 0, out _);
+                    "p", DummyAccount, region, publisher, "m", "sys", prompt, files, 0, out _, out _);
 
         [Theory]
         [MemberData(nameof(BothActions))]

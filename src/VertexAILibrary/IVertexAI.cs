@@ -19,7 +19,7 @@ namespace VertexAILibrary
         // ─────────────────────────────────────────────────────────────
 
         [OSAction(
-            Description = "Sends a prompt to a Vertex AI model (google or anthropic publisher) and returns the generated text. " +
+            Description = "Sends a prompt to a Vertex AI model (google or anthropic publisher) and returns the generated text and any files the model returns. " +
                           "Use GetSupportedRegions to see valid region values.",
             ReturnName = "ResponseText"
         )]
@@ -57,7 +57,11 @@ namespace VertexAILibrary
             decimal Temperature,
 
             [OSParameter(Description = "Token counts for the call (input, output, total, cache and thinking tokens).")]
-            out TokenUsage Usage
+            out TokenUsage Usage,
+
+            [OSParameter(Description = "Files returned by the model (e.g. generated images). Empty when the model returns none; " +
+                                       "only google models can return files.")]
+            out List<OutputFile> OutputFiles
         );
 
         // ─────────────────────────────────────────────────────────────
@@ -97,7 +101,11 @@ namespace VertexAILibrary
             int MaxOutputTokens,
 
             [OSParameter(Description = "Token counts for the call (input, output, total, cache and thinking tokens).")]
-            out TokenUsage Usage
+            out TokenUsage Usage,
+
+            [OSParameter(Description = "Files returned by the model (e.g. generated images). Empty when the model returns none; " +
+                                       "only google models can return files.")]
+            out List<OutputFile> OutputFiles
         );
 
         // ─────────────────────────────────────────────────────────────
@@ -106,7 +114,7 @@ namespace VertexAILibrary
 
         [OSAction(
             Description = "Sends a prompt plus one or more files (images, PDF, text; audio/video for google) " +
-                          "to a Vertex AI model and returns the generated text. " +
+                          "to a Vertex AI model and returns the generated text and any files the model returns. " +
                           "The whole request (files + prompt) must stay under the ODC 5.5 MB payload limit.",
             ReturnName = "ResponseText"
         )]
@@ -149,12 +157,16 @@ namespace VertexAILibrary
             decimal Temperature,
 
             [OSParameter(Description = "Token counts for the call (input, output, total, cache and thinking tokens).")]
-            out TokenUsage Usage
+            out TokenUsage Usage,
+
+            [OSParameter(Description = "Files returned by the model (e.g. generated images). Empty when the model returns none; " +
+                                       "only google models can return files.")]
+            out List<OutputFile> OutputFiles
         );
 
         [OSAction(
             Description = "Sends a system instruction, a user prompt and one or more files (images, PDF, text; " +
-                          "audio/video for google) to Vertex AI and returns the generated text. " +
+                          "audio/video for google) to Vertex AI and returns the generated text and any files the model returns. " +
                           "The whole request (files + prompts) must stay under the ODC 5.5 MB payload limit.",
             ReturnName = "ResponseText"
         )]
@@ -191,7 +203,11 @@ namespace VertexAILibrary
             int MaxOutputTokens,
 
             [OSParameter(Description = "Token counts for the call (input, output, total, cache and thinking tokens).")]
-            out TokenUsage Usage
+            out TokenUsage Usage,
+
+            [OSParameter(Description = "Files returned by the model (e.g. generated images). Empty when the model returns none; " +
+                                       "only google models can return files.")]
+            out List<OutputFile> OutputFiles
         );
 
         // ─────────────────────────────────────────────────────────────

@@ -16,13 +16,13 @@ namespace VertexAILibrary.UnitTests
             {
                 "ProjectId:String", "ServiceAccount:GCPServiceAccount", "Region:String", "Publisher:String",
                 "ModelId:String", "Prompt:String", "MaxOutputTokens:Int32", "Temperature:Decimal",
-                "Usage:out TokenUsage"
+                "Usage:out TokenUsage", "OutputFiles:out List<OutputFile>"
             },
             ["GenerateContentWithSystemPrompt"] = new[]
             {
                 "ProjectId:String", "ServiceAccount:GCPServiceAccount", "Region:String", "Publisher:String",
                 "ModelId:String", "SystemInstruction:String", "UserPrompt:String", "MaxOutputTokens:Int32",
-                "Usage:out TokenUsage"
+                "Usage:out TokenUsage", "OutputFiles:out List<OutputFile>"
             },
             ["TestConnection"] = new[]
             {
@@ -35,13 +35,13 @@ namespace VertexAILibrary.UnitTests
             {
                 "ProjectId:String", "ServiceAccount:GCPServiceAccount", "Region:String", "Publisher:String",
                 "ModelId:String", "Prompt:String", "Files:List<InputFile>", "MaxOutputTokens:Int32",
-                "Temperature:Decimal", "Usage:out TokenUsage"
+                "Temperature:Decimal", "Usage:out TokenUsage", "OutputFiles:out List<OutputFile>"
             },
             ["GenerateContentWithSystemPromptAndFiles"] = new[]
             {
                 "ProjectId:String", "ServiceAccount:GCPServiceAccount", "Region:String", "Publisher:String",
                 "ModelId:String", "SystemInstruction:String", "UserPrompt:String", "Files:List<InputFile>",
-                "MaxOutputTokens:Int32", "Usage:out TokenUsage"
+                "MaxOutputTokens:Int32", "Usage:out TokenUsage", "OutputFiles:out List<OutputFile>"
             }
         };
 
@@ -115,6 +115,25 @@ namespace VertexAILibrary.UnitTests
             Assert.All(fields, f => Assert.NotNull(f.Attr));
             Assert.Equal(new[] { typeof(string), typeof(string), typeof(byte[]) }, fields.Select(f => f.PropertyType));
             Assert.True(fields.Single(f => f.Name == "Content").Attr!.IsMandatory);
+        }
+
+        [Fact]
+        public void OutputFile_IsPublicNonNestedOdcStructure()
+        {
+            var type = typeof(OutputFile);
+
+            Assert.True(type.IsValueType);
+            Assert.True(type.IsPublic);
+            Assert.False(type.IsNested);
+            Assert.NotNull(type.GetCustomAttribute<OSStructureAttribute>());
+
+            var fields = type.GetProperties()
+                .Select(p => (p.Name, p.PropertyType, Attr: p.GetCustomAttribute<OSStructureFieldAttribute>()))
+                .ToList();
+
+            Assert.Equal(new[] { "FileName", "MimeType", "Content" }, fields.Select(f => f.Name));
+            Assert.All(fields, f => Assert.NotNull(f.Attr));
+            Assert.Equal(new[] { typeof(string), typeof(string), typeof(byte[]) }, fields.Select(f => f.PropertyType));
         }
 
         private static void AssertValidNames(IReadOnlyCollection<string> names)
