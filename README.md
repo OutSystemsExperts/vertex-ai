@@ -87,6 +87,8 @@ after the prompt:
 
 Both return `ResponseText` and the `Usage` output described above.
 
+All generate actions also return `OutputFiles`, a list of `OutputFile` (`FileName`, `MimeType`, `Content`) holding any files the model returns (for example generated images from a Gemini image model). The list is empty when the model returns no file, and always empty for the `anthropic` publisher. The combined size of the returned files must stay under 4 MB, otherwise the action fails.
+
 Each item of `Files` is an `InputFile` structure:
 
 | Field      | Type        | Description                                                                                        |

@@ -83,14 +83,16 @@ namespace VertexAILibrary
             string Publisher,
             string ModelId,
             string Prompt,
-            int    MaxOutputTokens,
+            int MaxOutputTokens,
             decimal Temperature,
-            out TokenUsage Usage)
+            out TokenUsage Usage,
+            out List<OutputFile> OutputFiles)
         {
-            var (text, usage) = Generate(ProjectId, ServiceAccount, Region, Publisher, ModelId,
+            var (text, usage, outputFiles) = Generate(ProjectId, ServiceAccount, Region, Publisher, ModelId,
                 null, Prompt, MaxOutputTokens, Temperature);
 
             Usage = usage;
+            OutputFiles = outputFiles;
             return text;
         }
 
@@ -105,13 +107,15 @@ namespace VertexAILibrary
             string ModelId,
             string SystemInstruction,
             string UserPrompt,
-            int    MaxOutputTokens,
-            out TokenUsage Usage)
+            int MaxOutputTokens,
+            out TokenUsage Usage,
+            out List<OutputFile> OutputFiles)
         {
-            var (text, usage) = Generate(ProjectId, ServiceAccount, Region, Publisher, ModelId,
+            var (text, usage, outputFiles) = Generate(ProjectId, ServiceAccount, Region, Publisher, ModelId,
                 SystemInstruction, UserPrompt, MaxOutputTokens, -1m);
 
             Usage = usage;
+            OutputFiles = outputFiles;
             return text;
         }
 
@@ -126,14 +130,16 @@ namespace VertexAILibrary
             string ModelId,
             string Prompt,
             List<InputFile> Files,
-            int    MaxOutputTokens,
+            int MaxOutputTokens,
             decimal Temperature,
-            out TokenUsage Usage)
+            out TokenUsage Usage,
+            out List<OutputFile> OutputFiles)
         {
-            var (text, usage) = Generate(ProjectId, ServiceAccount, Region, Publisher, ModelId,
+            var (text, usage, outputFiles) = Generate(ProjectId, ServiceAccount, Region, Publisher, ModelId,
                 null, Prompt, MaxOutputTokens, Temperature, Files ?? new List<InputFile>());
 
             Usage = usage;
+            OutputFiles = outputFiles;
             return text;
         }
 
@@ -149,13 +155,15 @@ namespace VertexAILibrary
             string SystemInstruction,
             string UserPrompt,
             List<InputFile> Files,
-            int    MaxOutputTokens,
-            out TokenUsage Usage)
+            int MaxOutputTokens,
+            out TokenUsage Usage,
+            out List<OutputFile> OutputFiles)
         {
-            var (text, usage) = Generate(ProjectId, ServiceAccount, Region, Publisher, ModelId,
+            var (text, usage, outputFiles) = Generate(ProjectId, ServiceAccount, Region, Publisher, ModelId,
                 SystemInstruction, UserPrompt, MaxOutputTokens, -1m, Files ?? new List<InputFile>());
 
             Usage = usage;
+            OutputFiles = outputFiles;
             return text;
         }
 
@@ -193,7 +201,7 @@ namespace VertexAILibrary
         /// When files are given, the prompt and files are validated (region → publisher → prompt →
         /// files) before any credential or network call.
         /// </summary>
-        private (string Text, TokenUsage Usage) Generate(
+        private (string Text, TokenUsage Usage, List<OutputFile> Files) Generate(
             string projectId,
             GCPServiceAccount account,
             string region,
@@ -220,7 +228,7 @@ namespace VertexAILibrary
                 : GenerateGoogle(projectId, account, region, modelId, systemInstruction, prompt, maxOutputTokens, temperature, resolved);
         }
 
-        private static (string Text, TokenUsage Usage) GenerateGoogle(
+        private static (string Text, TokenUsage Usage, List<OutputFile> Files) GenerateGoogle(
             string projectId,
             GCPServiceAccount account,
             string region,
@@ -242,14 +250,16 @@ namespace VertexAILibrary
                 ? default
                 : new TokenUsage
                 {
-                    InputTokens  = meta.PromptTokenCount,
+                    InputTokens = meta.PromptTokenCount,
                     OutputTokens = meta.CandidatesTokenCount,
-                    TotalTokens  = meta.TotalTokenCount,
+                    TotalTokens = meta.TotalTokenCount,
                     // The SDK doesn't expose thoughtsTokenCount; thinking tokens are the remainder of the total.
                     ThinkingTokens = Math.Max(0, meta.TotalTokenCount - meta.PromptTokenCount - meta.CandidatesTokenCount)
                 };
 
-            return (ExtractText(response), usage);
+            var (text, outputFiles) = GoogleOutput.Extract(response);
+
+            return (text, usage, outputFiles);
         }
 
         /// <summary>
@@ -280,9 +290,9 @@ namespace VertexAILibrary
 
             var request = new GenerateContentRequest
             {
-                Model            = BuildModelPath(projectId, region, GooglePublisher, modelId),
+                Model = BuildModelPath(projectId, region, GooglePublisher, modelId),
                 GenerationConfig = BuildGenerationConfig(maxOutputTokens, temperature),
-                Contents         = { userContent }
+                Contents = { userContent }
             };
 
             if (!string.IsNullOrEmpty(systemInstruction))
@@ -291,7 +301,7 @@ namespace VertexAILibrary
             return request;
         }
 
-        private static (string Text, TokenUsage Usage) GenerateAnthropic(
+        private static (string Text, TokenUsage Usage, List<OutputFile> Files) GenerateAnthropic(
             string projectId,
             GCPServiceAccount account,
             string region,
@@ -323,7 +333,7 @@ namespace VertexAILibrary
                 throw new InvalidOperationException(
                     $"Vertex AI (anthropic) returned {(int)response.StatusCode}: {body}");
 
-            return (ExtractAnthropicText(body), ExtractAnthropicUsage(body));
+            return (ExtractAnthropicText(body), ExtractAnthropicUsage(body), new List<OutputFile>());
         }
 
         /// <summary>
@@ -340,17 +350,17 @@ namespace VertexAILibrary
             int Read(string name) =>
                 usage.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetInt32() : 0;
 
-            var input         = Read("input_tokens");
-            var output        = Read("output_tokens");
+            var input = Read("input_tokens");
+            var output = Read("output_tokens");
             var cacheCreation = Read("cache_creation_input_tokens");
-            var cacheRead     = Read("cache_read_input_tokens");
+            var cacheRead = Read("cache_read_input_tokens");
 
             return new TokenUsage
             {
-                InputTokens              = input,
-                OutputTokens             = output,
-                TotalTokens              = input + output + cacheCreation + cacheRead,
-                CachedInputTokens        = cacheRead,
+                InputTokens = input,
+                OutputTokens = output,
+                TotalTokens = input + output + cacheCreation + cacheRead,
+                CachedInputTokens = cacheRead,
                 CacheCreationInputTokens = cacheCreation
             };
         }
@@ -369,10 +379,10 @@ namespace VertexAILibrary
             var body = new JsonObject
             {
                 ["anthropic_version"] = "vertex-2023-10-16",
-                ["max_tokens"]        = maxOutputTokens > 0 ? maxOutputTokens : 1024,
-                ["messages"]          = new JsonArray(new JsonObject
+                ["max_tokens"] = maxOutputTokens > 0 ? maxOutputTokens : 1024,
+                ["messages"] = new JsonArray(new JsonObject
                 {
-                    ["role"]    = "user",
+                    ["role"] = "user",
                     ["content"] = hasFiles ? BuildAnthropicContentBlocks(prompt, files!) : JsonValue.Create(prompt)
                 })
             };
@@ -415,12 +425,12 @@ namespace VertexAILibrary
         {
             var block = new JsonObject
             {
-                ["type"]   = type,
+                ["type"] = type,
                 ["source"] = new JsonObject
                 {
-                    ["type"]       = sourceType,
+                    ["type"] = sourceType,
                     ["media_type"] = file.MimeType,
-                    ["data"]       = data
+                    ["data"] = data
                 }
             };
 
@@ -465,11 +475,11 @@ namespace VertexAILibrary
         {
             var keyData = new Dictionary<string, string>
             {
-                ["type"]           = "service_account",
+                ["type"] = "service_account",
                 ["private_key_id"] = account.PrivateKeyId ?? string.Empty,
-                ["private_key"]    = account.PrivateKey,
-                ["client_email"]   = account.ClientEmail,
-                ["token_uri"]      = "https://oauth2.googleapis.com/token"
+                ["private_key"] = account.PrivateKey,
+                ["client_email"] = account.ClientEmail,
+                ["token_uri"] = "https://oauth2.googleapis.com/token"
             };
 
             return GoogleCredential
@@ -487,7 +497,7 @@ namespace VertexAILibrary
 
             return new PredictionServiceClientBuilder
             {
-                Endpoint           = BuildEndpoint(region),
+                Endpoint = BuildEndpoint(region),
                 ChannelCredentials = channelCredentials
             }.Build();
         }
@@ -530,22 +540,6 @@ namespace VertexAILibrary
                 config.Temperature = 0.4f; // Vertex AI default
 
             return config;
-        }
-
-        /// <summary>
-        /// Pulls the first text part from the first candidate in a GenerateContentResponse.
-        /// </summary>
-        private static string ExtractText(GenerateContentResponse response)
-        {
-            if (response?.Candidates == null || response.Candidates.Count == 0)
-                throw new InvalidOperationException("Vertex AI returned no candidates.");
-
-            var candidate = response.Candidates[0];
-
-            if (candidate.Content?.Parts == null || candidate.Content.Parts.Count == 0)
-                throw new InvalidOperationException("Vertex AI candidate has no content parts.");
-
-            return candidate.Content.Parts[0].Text ?? string.Empty;
         }
 
         /// <summary>
