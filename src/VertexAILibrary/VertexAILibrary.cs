@@ -1054,7 +1054,7 @@ namespace VertexAILibrary
             }
 
             if (!hasTurn)
-                throw new ArgumentException("Messages must contain at least one user or assistant message.");
+                throw new ArgumentException("Messages must contain at least one non-system message (user, assistant or tool).");
         }
 
         /// <summary>

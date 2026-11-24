@@ -240,14 +240,16 @@ namespace VertexAILibrary
             [OSParameter(Description = "Vertex AI model ID.")]
             string ModelId,
 
-            [OSParameter(Description = "The conversation so far, oldest first. Each item has a Role ('system', 'user' or 'assistant') and Content.")]
+            [OSParameter(Description = "The conversation so far, oldest first. Each item has a Role ('system', 'user', 'assistant' or 'tool') and Content. " +
+                                       "For tool calling (anthropic only), an 'assistant' item carries the calls it made in ToolCallsJson (its Content may be empty), " +
+                                       "and each 'tool' item carries the result in Content and the id of the call it answers in ToolCallId.")]
             List<ChatMessage> Messages,
 
             [OSParameter(Description = "Maximum number of output tokens. Pass 0 to use the default (4096).")]
             int MaxOutputTokens,
 
-            [OSParameter(Description = "Sampling temperature between 0 and 1. Pass -1 to use the default (0.4 for Google models; " +
-                                       "not sent for Anthropic models, since newer Claude models reject it).")]
+            [OSParameter(Description = "Sampling temperature between 0 and 1 for Google models; pass -1 to use the default (0.4). " +
+                                       "Ignored for Anthropic models (never sent, since newer Claude models reject it).")]
             decimal Temperature,
 
             [OSParameter(Description = "Tools the model may call, as an OpenAI 'tools' JSON array " +
