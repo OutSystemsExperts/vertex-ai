@@ -220,6 +220,42 @@ namespace VertexAILibrary.UnitTests
                 Lib.ExtractAnthropicText("""{"content":[],"stop_reason":"max_tokens"}"""));
         }
 
+        [Theory]
+        [InlineData("", "")]
+        [InlineData("[]", "")]
+        [InlineData("", "auto")]
+        [InlineData("[]", " AUTO ")]
+        public void FindToolCallingRequest_DefaultsMeanNoToolCalling(string tools, string choice)
+        {
+            Assert.Null(Lib.FindToolCallingRequest(tools, choice, new List<Lib.Turn> { new("user", "hi") }));
+        }
+
+        [Fact]
+        public void FindToolCallingRequest_NamesTheTrigger()
+        {
+            var user = new Lib.Turn("user", "hi");
+
+            Assert.Contains("ToolsJson", Lib.FindToolCallingRequest(Tools, "", new() { user }));
+            Assert.Contains("'required'", Lib.FindToolCallingRequest("", "required", new() { user }));
+            Assert.Contains("'tool' message", Lib.FindToolCallingRequest("", "", new() { new("tool", "r", "id1") }));
+            Assert.Contains("ToolCallsJson", Lib.FindToolCallingRequest("", "", new() { new("assistant", "", null, "[{}]") }));
+        }
+
+        [Theory]
+        [InlineData("[]", "auto")]
+        [InlineData("", "")]
+        public void Chat_Google_WithNormalizedDefaults_IsNotRejectedAsToolCalling(string tools, string choice)
+        {
+            var lib = new Lib();
+            var account = new GCPServiceAccount { ClientEmail = "a@b", PrivateKey = "k" };
+
+            // Passes the tool guard; fails later on the invalid credentials, not with NotSupportedException.
+            var ex = Record.Exception(() => lib.Chat("p", account, "us-central1", "google", "m",
+                new List<ChatMessage>(Hi), 0, -1m, tools, choice, out _, out _, out _));
+
+            Assert.IsNotType<NotSupportedException>(ex);
+        }
+
         [Fact]
         public void Chat_Google_WithTools_IsRejected()
         {

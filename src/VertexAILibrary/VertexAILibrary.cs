@@ -302,6 +302,28 @@ namespace VertexAILibrary
         /// </summary>
         internal sealed record Turn(string Role, string Content, string? ToolCallId = null, string? ToolCallsJson = null);
 
+        /// <summary>
+        /// Describes what in a request asks for tool calling, or returns null when nothing does.
+        /// Inputs are normalized first: empty ToolsJson, "[]" and ToolChoice "" / "auto" mean "no tool calling".
+        /// </summary>
+        internal static string? FindToolCallingRequest(string? toolsJson, string? toolChoice, List<Turn> turns)
+        {
+            if (ConvertTools(toolsJson) != null)
+                return "ToolsJson with at least one tool";
+
+            var choice = toolChoice?.Trim();
+            if (!string.IsNullOrEmpty(choice) && !choice.Equals("auto", StringComparison.OrdinalIgnoreCase))
+                return $"ToolChoice '{choice}'";
+
+            if (turns.Exists(t => t.Role == "tool"))
+                return "a 'tool' message";
+
+            if (turns.Exists(t => !string.IsNullOrEmpty(t.ToolCallsJson)))
+                return "an assistant message with ToolCallsJson";
+
+            return null;
+        }
+
         private static GenerationResult GenerateChatGoogle(
             string projectId,
             GCPServiceAccount account,
@@ -315,10 +337,10 @@ namespace VertexAILibrary
         {
             var (system, turns) = SplitMessages(messages);
 
-            if (!string.IsNullOrWhiteSpace(toolsJson) || !string.IsNullOrWhiteSpace(toolChoice)
-                || turns.Exists(t => t.Role == "tool" || !string.IsNullOrEmpty(t.ToolCallsJson)))
+            var trigger = FindToolCallingRequest(toolsJson, toolChoice, turns);
+            if (trigger != null)
                 throw new NotSupportedException(
-                    "Tool calling is only supported for the 'anthropic' publisher.");
+                    $"Tool calling is only supported for the 'anthropic' publisher (the request has {trigger}).");
 
             var client = BuildClient(account, region);
 

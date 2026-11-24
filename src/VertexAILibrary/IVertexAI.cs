@@ -252,12 +252,12 @@ namespace VertexAILibrary
 
             [OSParameter(Description = "Tools the model may call, as an OpenAI 'tools' JSON array " +
                                        "([{\"type\":\"function\",\"function\":{\"name\",\"description\",\"parameters\"}}]). " +
-                                       "Pass an empty string for no tools. Anthropic publisher only.")]
+                                       "Pass an empty string or [] for no tools. Tool calling is Anthropic publisher only.")]
             string ToolsJson,
 
             [OSParameter(Description = "Which tool the model may call: empty or 'auto' (model decides), 'none' (no tool calls), " +
                                        "'required' (must call some tool) or a tool name (must call that tool). " +
-                                       "Anything other than empty/'auto' needs ToolsJson. Anthropic publisher only.")]
+                                       "Anything other than empty/'auto' needs ToolsJson. Tool calling is Anthropic publisher only.")]
             string ToolChoice,
 
             [OSParameter(Description = "Token counts for the call (input, output, total, cache and thinking tokens).")]

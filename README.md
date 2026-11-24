@@ -94,7 +94,7 @@ System messages are combined into the system instruction for both publishers.
 
 Loop: call `Chat` -> if `FinishReason` is `tool_use` (`ToolCallsJson` is not empty), run the tools -> call `Chat` again with the earlier messages, the assistant message (`ToolCallsJson`) and one `tool` message per call -> repeat until `FinishReason` is no longer `tool_use`. A `max_tokens` finish never returns `ToolCallsJson`; raise `MaxOutputTokens` and retry.
 
-Passing tools (or `tool` messages) with the `google` publisher raises an error; it is not supported yet.
+With the `google` publisher, tool calling is not supported yet: a `ToolsJson` with at least one tool, a `ToolChoice` other than empty/`auto`, a `tool` message, or an assistant message with `ToolCallsJson` raises an error naming the trigger. An empty `ToolsJson`, `[]` and `auto` are accepted and mean no tools.
 
 > **Breaking change:** `Chat` gained the mandatory `ToolsJson` and `ToolChoice` inputs and `ToolCallsJson` output, and `ChatMessage` gained two fields. Consumers must refresh the library reference and pass `""` for `ToolsJson` and `ToolChoice` to keep the old behaviour.
 
