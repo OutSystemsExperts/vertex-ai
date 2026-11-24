@@ -51,6 +51,40 @@ namespace VertexAILibrary.UnitTests
             Assert.Equal("object", (string?)tools![0]!["input_schema"]!["type"]);
         }
 
+        [Theory]
+        [InlineData("""["x"]""", "ToolsJson[0]")]
+        [InlineData("""[{"function":"x"}]""", "ToolsJson[0].function")]
+        [InlineData("""[{"name":42}]""", "ToolsJson[0].name")]
+        [InlineData("""[{"name":"a","description":1}]""", "ToolsJson[0].description")]
+        [InlineData("""[{"name":""}]""", "ToolsJson[0].name")]
+        [InlineData("[{\"name\":\"a\"", "ToolsJson is not valid JSON")]
+        public void MalformedTools_ThrowArgumentException(string tools, string expected)
+        {
+            var ex = Assert.Throws<ArgumentException>(() => Lib.ConvertTools(tools));
+
+            Assert.Contains(expected, ex.Message);
+        }
+
+        [Theory]
+        [InlineData("""["x"]""", "ToolCallsJson[0]")]
+        [InlineData("""[{"id":"a","function":"x"}]""", "ToolCallsJson[0].function")]
+        [InlineData("""[{"id":7,"function":{"name":"n"}}]""", "ToolCallsJson[0].id")]
+        [InlineData("""[{"id":"a","function":{"name":5}}]""", "ToolCallsJson[0].function.name")]
+        [InlineData("""[{"id":"a","function":{"name":"n","arguments":"{\"city\":"}}]""", "ToolCallsJson[0].function.arguments is not valid JSON")]
+        [InlineData("[{\"id\":\"a\"", "ToolCallsJson is not valid JSON")]
+        public void MalformedToolCalls_ThrowArgumentException(string calls, string expected)
+        {
+            var messages = new[]
+            {
+                new ChatMessage { Role = "user", Content = "hi" },
+                new ChatMessage { Role = "assistant", Content = "", ToolCallsJson = calls }
+            };
+
+            var ex = Assert.Throws<ArgumentException>(() => Body(messages));
+
+            Assert.Contains(expected, ex.Message);
+        }
+
         [Fact]
         public void AssistantToolCalls_BecomeToolUseBlocks_WithParsedInput()
         {

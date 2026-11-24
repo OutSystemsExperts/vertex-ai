@@ -729,22 +729,32 @@ namespace VertexAILibrary
             if (string.IsNullOrWhiteSpace(toolsJson))
                 return null;
 
-            if (JsonNode.Parse(toolsJson) is not JsonArray openAiTools)
+            if (ParseJson(toolsJson, "ToolsJson") is not JsonArray openAiTools)
                 throw new ArgumentException("ToolsJson must be a JSON array.");
 
             var tools = new JsonArray();
-            foreach (var item in openAiTools)
+            for (var i = 0; i < openAiTools.Count; i++)
             {
+                var path = $"ToolsJson[{i}]";
+
                 // Accept {"type":"function","function":{...}} and the flat {...} form.
-                var def  = item?["function"] as JsonObject ?? item as JsonObject
-                    ?? throw new ArgumentException("Each tool in ToolsJson must be a JSON object.");
-                var name = def["name"]?.GetValue<string>();
+                if (openAiTools[i] is not JsonObject item)
+                    throw new ArgumentException($"{path} must be a JSON object.");
+
+                var def = item["function"] switch
+                {
+                    null => item,
+                    JsonObject fn => fn,
+                    _ => throw new ArgumentException($"{path}.function must be a JSON object.")
+                };
+
+                var name = ReadString(def, "name", path);
                 if (string.IsNullOrEmpty(name))
-                    throw new ArgumentException("Each tool in ToolsJson must have a name.");
+                    throw new ArgumentException($"{path}.name is required.");
 
                 var tool = new JsonObject { ["name"] = name };
 
-                var description = def["description"]?.GetValue<string>();
+                var description = ReadString(def, "description", path);
                 if (!string.IsNullOrEmpty(description))
                     tool["description"] = description;
 
@@ -763,21 +773,29 @@ namespace VertexAILibrary
         /// </summary>
         private static IEnumerable<JsonObject> ParseToolCalls(string toolCallsJson)
         {
-            if (JsonNode.Parse(toolCallsJson) is not JsonArray calls)
+            if (ParseJson(toolCallsJson, "ToolCallsJson") is not JsonArray calls)
                 throw new ArgumentException("ToolCallsJson must be a JSON array.");
 
-            foreach (var call in calls)
+            for (var i = 0; i < calls.Count; i++)
             {
-                var fn   = call?["function"];
-                var name = fn?["name"]?.GetValue<string>();
-                var id   = call?["id"]?.GetValue<string>();
+                var path = $"ToolCallsJson[{i}]";
+
+                if (calls[i] is not JsonObject call)
+                    throw new ArgumentException($"{path} must be a JSON object.");
+                if (call["function"] is not JsonObject fn)
+                    throw new ArgumentException($"{path}.function must be a JSON object.");
+
+                var name = ReadString(fn, "name", $"{path}.function");
+                var id   = ReadString(call, "id", path);
                 if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(id))
-                    throw new ArgumentException("Each tool call must have an id and a function name.");
+                    throw new ArgumentException($"{path} must have an id and a function name.");
 
                 // OpenAI sends arguments as a JSON string; Anthropic wants the parsed object.
-                var args = fn!["arguments"];
+                var args = fn["arguments"];
                 JsonNode input = args is JsonValue v && v.TryGetValue<string>(out var text)
-                    ? (string.IsNullOrWhiteSpace(text) ? new JsonObject() : JsonNode.Parse(text) ?? new JsonObject())
+                    ? (string.IsNullOrWhiteSpace(text)
+                        ? new JsonObject()
+                        : ParseJson(text, $"{path}.function.arguments") ?? new JsonObject())
                     : args?.DeepClone() ?? new JsonObject();
 
                 yield return new JsonObject
@@ -788,6 +806,35 @@ namespace VertexAILibrary
                     ["input"] = input
                 };
             }
+        }
+
+        /// <summary>
+        /// Parses JSON input, reporting malformed JSON as an ArgumentException that names the input.
+        /// </summary>
+        private static JsonNode? ParseJson(string json, string inputName)
+        {
+            try
+            {
+                return JsonNode.Parse(json);
+            }
+            catch (JsonException ex)
+            {
+                throw new ArgumentException($"{inputName} is not valid JSON: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Reads an optional string property; throws ArgumentException when present with another type.
+        /// </summary>
+        private static string? ReadString(JsonObject obj, string property, string path)
+        {
+            if (obj[property] is not JsonNode node)
+                return null;
+
+            if (node is JsonValue value && value.TryGetValue<string>(out var text))
+                return text;
+
+            throw new ArgumentException($"{path}.{property} must be a string.");
         }
 
         /// <summary>
