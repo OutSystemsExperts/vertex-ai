@@ -70,17 +70,26 @@ public class GoogleOutputTests {
         => Assert.Equal(expected, GoogleOutput.FileNameFor(3, mimeType));
 
     [Fact]
-    public void NoCandidates_Throws()
-        => Assert.Throws<InvalidOperationException>(() => GoogleOutput.Extract(new GenerateContentResponse()));
+    public void NoCandidates_Throws() {
+        var ex = Assert.Throws<InvalidOperationException>(() => GoogleOutput.Extract(new GenerateContentResponse()));
+
+        Assert.Equal("Vertex AI returned no candidates.", ex.Message);
+    }
 
     [Fact]
-    public void NoParts_Throws()
-        => Assert.Throws<InvalidOperationException>(() => GoogleOutput.Extract(Response()));
+    public void NoParts_Throws() {
+        var ex = Assert.Throws<InvalidOperationException>(() => GoogleOutput.Extract(Response()));
+
+        Assert.StartsWith("Vertex AI candidate has no content parts (finish reason:", ex.Message);
+        Assert.Contains("increase MaxOutputTokens", ex.Message);
+    }
 
     [Fact]
     public void FilesOverLimit_Throw() {
         var big = new byte[GoogleOutput.MaxTotalBytes + 1];
 
-        Assert.Throws<InvalidOperationException>(() => GoogleOutput.Extract(Response(Blob("image/png", big))));
+        var ex = Assert.Throws<InvalidOperationException>(() => GoogleOutput.Extract(Response(Blob("image/png", big))));
+
+        Assert.Equal("The files returned by the model exceed the 4 MB limit that fits the ODC 5.5 MB payload limit.", ex.Message);
     }
 }

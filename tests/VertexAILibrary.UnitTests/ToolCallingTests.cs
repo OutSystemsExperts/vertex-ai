@@ -1,8 +1,10 @@
 using System.Text.Json.Nodes;
 using Xunit;
-using Lib = VertexAILibrary.VertexAILibrary;
+using Sut = VertexAILibrary.VertexAILibrary;
+using static VertexAILibrary.UnitTests.TestHelpers;
 
-namespace VertexAILibrary.UnitTests; 
+namespace VertexAILibrary.UnitTests;
+
 public class ToolCallingTests {
     private const string Tools = """
         [{"type":"function","function":{"name":"get_weather","description":"Weather","parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}}}]
@@ -12,14 +14,9 @@ public class ToolCallingTests {
         [{"id":"toolu_1","type":"function","function":{"name":"get_weather","arguments":"{\"city\":\"Lisbon\"}"}}]
         """;
 
-    private const string TwoCalls = """
-        [{"id":"toolu_1","type":"function","function":{"name":"get_weather","arguments":"{\"city\":\"Lisbon\"}"}},
-         {"id":"toolu_2","type":"function","function":{"name":"get_weather","arguments":"{\"city\":\"Porto\"}"}}]
-        """;
-
     private static JsonNode Body(IEnumerable<ChatMessage> messages, string? tools = null, string? toolChoice = null) {
-        var (system, turns) = Lib.SplitMessages(messages);
-        return JsonNode.Parse(Lib.BuildAnthropicRequestBody(system, turns, 0, tools, toolChoice))!;
+        var (system, turns) = Sut.SplitMessages(messages);
+        return JsonNode.Parse(Sut.BuildAnthropicRequestBody(system, turns, 0, tools, toolChoice))!;
     }
 
     [Fact]
@@ -45,7 +42,7 @@ public class ToolCallingTests {
 
     [Fact]
     public void ToolWithoutParameters_GetsEmptyObjectSchema() {
-        var tools = Lib.ConvertTools("""[{"type":"function","function":{"name":"ping"}}]""");
+        var tools = Sut.ConvertTools("""[{"type":"function","function":{"name":"ping"}}]""");
 
         Assert.Equal("object", (string?)tools![0]!["input_schema"]!["type"]);
     }
@@ -58,7 +55,7 @@ public class ToolCallingTests {
     [InlineData("""[{"name":""}]""", "ToolsJson[0].name")]
     [InlineData("[{\"name\":\"a\"", "ToolsJson is not valid JSON")]
     public void MalformedTools_ThrowArgumentException(string tools, string expected) {
-        var ex = Assert.Throws<ArgumentException>(() => Lib.ConvertTools(tools));
+        var ex = Assert.Throws<ArgumentException>(() => Sut.ConvertTools(tools));
 
         Assert.Contains(expected, ex.Message);
     }
@@ -80,6 +77,33 @@ public class ToolCallingTests {
         var ex = Assert.Throws<ArgumentException>(() => Body(messages));
 
         Assert.Contains(expected, ex.Message);
+    }
+
+    [Theory]
+    [InlineData("[]")]
+    [InlineData(" [ ] ")]
+    public void AssistantEmptyToolCalls_AreTreatedAsPlainAssistantMessage_Anthropic(string calls) {
+        var body = Body(new[]
+        {
+            new ChatMessage { Role = "user", Content = "hi" },
+            new ChatMessage { Role = "assistant", Content = "hello", ToolCallsJson = calls }
+        });
+
+        var assistant = body["messages"]![1]!;
+        Assert.Equal("hello", (string?)assistant["content"]);
+    }
+
+    [Theory]
+    [InlineData("[]")]
+    [InlineData(" [ ] ")]
+    public void AssistantEmptyToolCalls_AreNotToolCalling_Google(string calls) {
+        var (_, split) = Sut.SplitMessages(new[]
+        {
+            new ChatMessage { Role = "assistant", Content = "hello", ToolCallsJson = calls }
+        });
+
+        Assert.Null(split[0].ToolCallsJson);
+        Assert.Null(Sut.FindToolCallingRequest("", "", split));
     }
 
     [Fact]
@@ -113,36 +137,14 @@ public class ToolCallingTests {
     }
 
     [Fact]
-    public void ConsecutiveToolResults_ShareOneUserMessage() {
-        var body = Body(new[]
-        {
-            new ChatMessage { Role = "user", Content = "q" },
-            new ChatMessage { Role = "assistant", Content = "", ToolCallsJson = TwoCalls },
-            new ChatMessage { Role = "tool", ToolCallId = "toolu_1", Content = "sunny" },
-            new ChatMessage { Role = "tool", ToolCallId = "toolu_2", Content = "rainy" }
-        });
-
-        var messages = body["messages"]!.AsArray();
-        Assert.Equal(3, messages.Count);
-        Assert.Equal(2, messages[1]!["content"]!.AsArray().Count);
-        var results = messages[2]!["content"]!.AsArray();
-        Assert.Equal("user", (string?)messages[2]!["role"]);
-        Assert.Equal(2, results.Count);
-        Assert.Equal("tool_result", (string?)results[0]!["type"]);
-        Assert.Equal("toolu_1", (string?)results[0]!["tool_use_id"]);
-        Assert.Equal("sunny", (string?)results[0]!["content"]);
-        Assert.Equal("tool_result", (string?)results[1]!["type"]);
-        Assert.Equal("toolu_2", (string?)results[1]!["tool_use_id"]);
-        Assert.Equal("rainy", (string?)results[1]!["content"]);
-    }
-
-    [Fact]
     public void ToolMessage_WithoutToolCallId_Throws() {
-        Assert.Throws<ArgumentException>(() => Body(new[]
+        var ex = Assert.Throws<ArgumentException>(() => Body(new[]
         {
-            new ChatMessage { Role = "user", Content = "q" },
-            new ChatMessage { Role = "tool", Content = "x" }
+            Msg("user", "q"),
+            Msg("tool", "x")
         }));
+
+        Assert.Equal("A 'tool' message requires ToolCallId.", ex.Message);
     }
 
     [Fact]
@@ -163,7 +165,7 @@ public class ToolCallingTests {
 
     [Fact]
     public void ToolUseResponse_YieldsOpenAiToolCalls() {
-        var calls = JsonNode.Parse(Lib.ExtractAnthropicToolCalls(ToolUseResponse))!.AsArray();
+        var calls = JsonNode.Parse(Sut.ExtractAnthropicToolCalls(ToolUseResponse))!.AsArray();
 
         Assert.Single(calls);
         Assert.Equal("toolu_9", (string?)calls[0]!["id"]);
@@ -175,39 +177,56 @@ public class ToolCallingTests {
 
     [Fact]
     public void ToolUseOnlyResponse_HasEmptyTextAndToolUseStopReason() {
-        Assert.Equal(string.Empty, Lib.ExtractAnthropicText(ToolUseResponse));
-        Assert.Equal("tool_use", Lib.ExtractAnthropicStopReason(ToolUseResponse));
+        Assert.Equal(string.Empty, Sut.ExtractAnthropicText(ToolUseResponse));
+        Assert.Equal("tool_use", Sut.ExtractAnthropicStopReason(ToolUseResponse));
     }
 
     [Fact]
     public void TextResponse_HasNoToolCalls() {
         const string body = """{"content":[{"type":"text","text":"hi"}],"stop_reason":"end_turn"}""";
 
-        Assert.Equal(string.Empty, Lib.ExtractAnthropicToolCalls(body));
-        Assert.Equal("hi", Lib.ExtractAnthropicText(body));
+        Assert.Equal(string.Empty, Sut.ExtractAnthropicToolCalls(body));
+        Assert.Equal("hi", Sut.ExtractAnthropicText(body));
+    }
+
+    [Theory]
+    [InlineData("\"stop_reason\":\"max_tokens\"", "max_tokens")]
+    [InlineData("\"stop_reason\":\"end_turn\"", "end_turn")]
+    [InlineData("\"stop_reason\":\"stop_sequence\"", "stop_sequence")]
+    [InlineData("\"stop_reason\":null", "")]
+    [InlineData("\"stop_reason\":7", "")]
+    [InlineData("\"other\":1", "")]
+    public void ToolUseBlocks_AreIgnored_UnlessStopReasonIsToolUse(string stopField, string expectedStopReason) {
+        var body = "{\"content\":[{\"type\":\"text\",\"text\":\"let me check\"},"
+                   + "{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"get_weather\",\"input\":{}}]," + stopField + "}";
+
+        Assert.Equal(string.Empty, Sut.ExtractAnthropicToolCalls(body));
+        Assert.Equal(expectedStopReason, Sut.ExtractAnthropicStopReason(body));
     }
 
     [Fact]
-    public void TruncatedToolUse_WithText_ReturnsNoToolCalls() {
-        const string body = """{"content":[{"type":"text","text":"let me check"},{"type":"tool_use","id":"toolu_1","name":"get_weather","input":{}}],"stop_reason":"max_tokens"}""";
+    public void ToolUseStopReason_WithoutContent_YieldsNoCallsAndEmptyText() {
+        const string body = """{"content":[],"stop_reason":"tool_use"}""";
 
-        Assert.Equal(string.Empty, Lib.ExtractAnthropicToolCalls(body));
-        Assert.Equal("max_tokens", Lib.ExtractAnthropicStopReason(body));
+        Assert.Equal(string.Empty, Sut.ExtractAnthropicToolCalls(body));
+        Assert.Equal(string.Empty, Sut.ExtractAnthropicText(body));
     }
 
     [Fact]
     public void TruncatedToolUse_WithoutText_ThrowsNeutralMessage() {
         const string body = """{"content":[{"type":"tool_use","id":"toolu_1","name":"get_weather","input":{}}],"stop_reason":"max_tokens"}""";
 
-        Assert.Equal(string.Empty, Lib.ExtractAnthropicToolCalls(body));
-        var ex = Assert.Throws<InvalidOperationException>(() => Lib.ExtractAnthropicText(body));
+        Assert.Equal(string.Empty, Sut.ExtractAnthropicToolCalls(body));
+        var ex = Assert.Throws<InvalidOperationException>(() => Sut.ExtractAnthropicText(body));
         Assert.Contains("thinking or a tool call", ex.Message);
     }
 
     [Fact]
     public void EmptyResponse_WithoutToolUse_StillThrows() {
-        Assert.Throws<InvalidOperationException>(() =>
-            Lib.ExtractAnthropicText("""{"content":[],"stop_reason":"max_tokens"}"""));
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            Sut.ExtractAnthropicText("""{"content":[],"stop_reason":"max_tokens"}"""));
+
+        Assert.StartsWith("Vertex AI (anthropic) returned no text content (stop_reason: max_tokens).", ex.Message);
     }
 
     [Theory]
@@ -216,28 +235,27 @@ public class ToolCallingTests {
     [InlineData("", "auto")]
     [InlineData("[]", " AUTO ")]
     public void FindToolCallingRequest_DefaultsMeanNoToolCalling(string tools, string choice) {
-        Assert.Null(Lib.FindToolCallingRequest(tools, choice, new List<Lib.Turn> { new("user", "hi") }));
+        Assert.Null(Sut.FindToolCallingRequest(tools, choice, new List<Sut.Turn> { new("user", "hi") }));
     }
 
     [Fact]
     public void FindToolCallingRequest_NamesTheTrigger() {
-        var user = new Lib.Turn("user", "hi");
+        var user = new Sut.Turn("user", "hi");
 
-        Assert.Contains("ToolsJson", Lib.FindToolCallingRequest(Tools, "", new() { user }));
-        Assert.Contains("'required'", Lib.FindToolCallingRequest("", "required", new() { user }));
-        Assert.Contains("'tool' message", Lib.FindToolCallingRequest("", "", new() { new("tool", "r", "id1") }));
-        Assert.Contains("ToolCallsJson", Lib.FindToolCallingRequest("", "", new() { new("assistant", "", null, "[{}]") }));
+        Assert.Equal("ToolsJson with at least one tool", Sut.FindToolCallingRequest(Tools, "", new() { user }));
+        Assert.Equal("ToolChoice 'required'", Sut.FindToolCallingRequest("", "required", new() { user }));
+        Assert.Equal("a 'tool' message", Sut.FindToolCallingRequest("", "", new() { new("tool", "r", "id1") }));
+        Assert.Equal("an assistant message with ToolCallsJson", Sut.FindToolCallingRequest("", "", new() { new("assistant", "", null, "[{}]") }));
     }
 
     [Theory]
     [InlineData("[]", "auto")]
     [InlineData("", "")]
     public void Chat_Google_WithNormalizedDefaults_IsNotRejectedAsToolCalling(string tools, string choice) {
-        var lib = new Lib();
-        var account = new GCPServiceAccount { ClientEmail = "a@b", PrivateKey = "k" };
+        var lib = new Sut();
 
         // Passes the tool guard; fails later on the invalid credentials, not with NotSupportedException.
-        var ex = Record.Exception(() => lib.Chat("p", account, "us-central1", "google", "m",
+        var ex = Record.Exception(() => lib.Chat("test-project", DummyAccount, "us-central1", "google", "m",
             new List<ChatMessage>(Hi), 0, -1m, out _, out _, out _, ToolsJson: tools, ToolChoice: choice));
 
         Assert.IsNotType<NotSupportedException>(ex);
@@ -245,12 +263,14 @@ public class ToolCallingTests {
 
     [Fact]
     public void Chat_Google_WithTools_IsRejected() {
-        var lib = new Lib();
-        var account = new GCPServiceAccount { ClientEmail = "a@b", PrivateKey = "k" };
+        var lib = new Sut();
 
-        Assert.Throws<NotSupportedException>(() => lib.Chat("p", account, "us-central1", "google", "m",
+        var ex = Assert.Throws<NotSupportedException>(() => lib.Chat("test-project", DummyAccount, "us-central1", "google", "m",
             new List<ChatMessage> { new() { Role = "user", Content = "hi" } }, 0, -1m,
             out _, out _, out _, ToolsJson: Tools));
+
+        Assert.Equal("Tool calling is only supported for the 'anthropic' publisher " +
+                     "(the request has ToolsJson with at least one tool).", ex.Message);
     }
 
     private static readonly ChatMessage[] Hi = { new() { Role = "user", Content = "hi" } };
@@ -282,16 +302,20 @@ public class ToolCallingTests {
 
     [Fact]
     public void ToolChoice_WithoutTools_Throws() {
-        Assert.Throws<ArgumentException>(() => Body(Hi, null, "required"));
+        var ex = Assert.Throws<ArgumentException>(() => Body(Hi, null, "required"));
+
+        Assert.Equal("ToolChoice requires ToolsJson to define at least one tool.", ex.Message);
     }
 
     [Fact]
     public void Chat_Google_WithToolChoice_IsRejected() {
-        var lib = new Lib();
-        var account = new GCPServiceAccount { ClientEmail = "a@b", PrivateKey = "k" };
+        var lib = new Sut();
 
-        Assert.Throws<NotSupportedException>(() => lib.Chat("p", account, "us-central1", "google", "m",
+        var ex = Assert.Throws<NotSupportedException>(() => lib.Chat("test-project", DummyAccount, "us-central1", "google", "m",
             new List<ChatMessage>(Hi), 0, -1m,
             out _, out _, out _, ToolChoice: "required"));
+
+        Assert.Equal("Tool calling is only supported for the 'anthropic' publisher " +
+                     "(the request has ToolChoice 'required').", ex.Message);
     }
 }

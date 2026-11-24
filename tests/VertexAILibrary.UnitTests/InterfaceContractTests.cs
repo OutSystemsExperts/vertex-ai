@@ -151,10 +151,6 @@ public class InterfaceContractTests {
             Assert.True(parameter.IsOptional, $"{name} must be optional");
             Assert.Equal(string.Empty, parameter.DefaultValue);
         }
-
-        // C# needs every required parameter (including out parameters) before the optional ones.
-        Assert.All(parameters.Where(p => !p.IsOptional), p =>
-            Assert.True(p.Position < parameters.First(o => o.IsOptional).Position));
     }
 
     [Fact]

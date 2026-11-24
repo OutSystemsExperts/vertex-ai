@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 using Xunit;
 using Sut = VertexAILibrary.VertexAILibrary;
+using static VertexAILibrary.UnitTests.TestHelpers;
 
 namespace VertexAILibrary.UnitTests; 
 /// <summary>
@@ -15,17 +16,8 @@ public class ChatTests {
     private static readonly string[] ToolIds = { "toolu_1", "toolu_2" };
     private static readonly string[] ToolResults = { "sunny", "10:00" };
 
-    private static readonly GCPServiceAccount DummyAccount = new() {
-        ClientEmail = "dummy@example.iam.gserviceaccount.com",
-        PrivateKey = "not-a-key",
-        PrivateKeyId = "dummy"
-    };
-
-    private static ChatMessage Msg(string role, string? content = "x", string? toolCallId = null, string? toolCallsJson = null)
-        => new() { Role = role, Content = content!, ToolCallId = toolCallId!, ToolCallsJson = toolCallsJson! };
-
     private static void CallChat(string region, string publisher, List<ChatMessage>? messages)
-        => new Sut().Chat("p", DummyAccount, region, publisher, "m", messages!, 0, -1m,
+        => new Sut().Chat("test-project", DummyAccount, region, publisher, "m", messages!, 0, -1m,
             out _, out _, out _);
 
     private static JsonNode Body(IEnumerable<ChatMessage> messages) {
@@ -77,6 +69,32 @@ public class ChatTests {
         var ex = Assert.Throws<ArgumentException>(() => CallChat("mars-north1", "google", null));
 
         Assert.StartsWith("Region 'mars-north1' is not supported.", ex.Message);
+    }
+
+    [Theory]
+    [InlineData("x/../../../google/models/gemini-2.5-pro")]
+    [InlineData("claude-sonnet-4:countTokens?")]
+    [InlineData("a#b")]
+    [InlineData("..")]
+    [InlineData("")]
+    public void InvalidModelId_Throws(string modelId) {
+        var ex = Assert.Throws<ArgumentException>(() => new Sut().Chat("test-project", DummyAccount,
+            ValidRegion, "anthropic", modelId, new List<ChatMessage> { Msg("user") }, 0, -1m,
+            out _, out _, out _));
+
+        Assert.StartsWith("ModelId contains invalid characters.", ex.Message);
+    }
+
+    [Theory]
+    [InlineData("a/../b")]
+    [InlineData("p")]
+    [InlineData("Proj?x=1")]
+    public void InvalidProjectId_Throws(string projectId) {
+        var ex = Assert.Throws<ArgumentException>(() => new Sut().Chat(projectId, DummyAccount,
+            ValidRegion, "anthropic", "claude-sonnet-4@20250514", new List<ChatMessage> { Msg("user") }, 0, -1m,
+            out _, out _, out _));
+
+        Assert.StartsWith("ProjectId is not a valid", ex.Message);
     }
 
     [Fact]

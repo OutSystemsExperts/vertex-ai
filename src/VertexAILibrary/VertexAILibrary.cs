@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using Google.Apis.Auth.OAuth2;
 using Google.Cloud.AIPlatform.V1;
 using Google.Protobuf;
@@ -63,6 +64,7 @@ public class VertexAILibrary : IVertexAI {
     // thinking budget alone is 1024 tokens).
     // ─────────────────────────────────────────────────────────────
     private const int DefaultMaxOutputTokens = 4096;
+    private const string AnthropicVersion = "vertex-2023-10-16";
 
 
     // ─────────────────────────────────────────────────────────────
@@ -188,11 +190,15 @@ public class VertexAILibrary : IVertexAI {
         string ToolChoice = "") {
         ValidateRegion(Region);
         ValidatePublisher(Publisher);
+        ValidateProjectId(ProjectId);
+        ValidateModelId(ModelId);
         ValidateMessages(Messages);
 
-        var result = Publisher == AnthropicPublisher
-            ? GenerateChatAnthropic(ProjectId, ServiceAccount, Region, ModelId, Messages, MaxOutputTokens, ToolsJson, ToolChoice)
-            : GenerateChatGoogle(ProjectId, ServiceAccount, Region, ModelId, Messages, MaxOutputTokens, Temperature, ToolsJson, ToolChoice);
+        var result = Publisher switch {
+            AnthropicPublisher => GenerateChatAnthropic(ProjectId, ServiceAccount, Region, ModelId, Messages, MaxOutputTokens, ToolsJson, ToolChoice),
+            GooglePublisher => GenerateChatGoogle(ProjectId, ServiceAccount, Region, ModelId, Messages, MaxOutputTokens, Temperature, ToolsJson, ToolChoice),
+            _ => throw UnhandledPublisher(Publisher)
+        };
 
         Usage = result.Usage;
         FinishReason = result.FinishReason;
@@ -243,6 +249,8 @@ public class VertexAILibrary : IVertexAI {
         List<InputFile>? files = null) {
         ValidateRegion(region);
         ValidatePublisher(publisher);
+        ValidateProjectId(projectId);
+        ValidateModelId(modelId);
 
         IReadOnlyList<ResolvedFile>? resolved = null;
         if (files != null) {
@@ -250,9 +258,11 @@ public class VertexAILibrary : IVertexAI {
             resolved = InputFiles.Resolve(files, publisher);
         }
 
-        return publisher == AnthropicPublisher
-            ? GenerateAnthropic(projectId, account, region, modelId, systemInstruction, prompt, maxOutputTokens, resolved)
-            : GenerateGoogle(projectId, account, region, modelId, systemInstruction, prompt, maxOutputTokens, temperature, resolved);
+        return publisher switch {
+            AnthropicPublisher => GenerateAnthropic(projectId, account, region, modelId, systemInstruction, prompt, maxOutputTokens, resolved),
+            GooglePublisher => GenerateGoogle(projectId, account, region, modelId, systemInstruction, prompt, maxOutputTokens, temperature, resolved),
+            _ => throw UnhandledPublisher(publisher)
+        };
     }
 
     private static (string Text, TokenUsage Usage, List<OutputFile> Files) GenerateGoogle(
@@ -394,11 +404,32 @@ public class VertexAILibrary : IVertexAI {
             } else {
                 turns.Add(new Turn(role, content,
                     string.IsNullOrEmpty(message.ToolCallId) ? null : message.ToolCallId,
-                    string.IsNullOrWhiteSpace(message.ToolCallsJson) ? null : message.ToolCallsJson));
+                    NormalizeToolCallsJson(message.ToolCallsJson)));
             }
         }
 
         return (system.Count == 0 ? null : string.Join("\n\n", system), turns);
+    }
+
+    /// <summary>
+    /// Maps "no tool calls" to null: empty, whitespace or a JSON array with no elements ("[]", as
+    /// serialized by an empty list). Anything else, including invalid JSON, is kept so it is
+    /// validated and reported later.
+    /// </summary>
+    private static string? NormalizeToolCallsJson(string? toolCallsJson) {
+        if (string.IsNullOrWhiteSpace(toolCallsJson)) {
+            return null;
+        }
+
+        try {
+            if (JsonNode.Parse(toolCallsJson) is JsonArray { Count: 0 }) {
+                return null;
+            }
+        } catch (JsonException) {
+            // Left for ParseToolCalls to report with the input name.
+        }
+
+        return toolCallsJson;
     }
 
     /// <summary>
@@ -536,18 +567,11 @@ public class VertexAILibrary : IVertexAI {
         IReadOnlyList<ResolvedFile>? files = null) {
         var hasFiles = files is { Count: > 0 };
 
-        var body = new JsonObject {
-            ["anthropic_version"] = "vertex-2023-10-16",
-            ["max_tokens"] = maxOutputTokens > 0 ? maxOutputTokens : DefaultMaxOutputTokens,
-            ["messages"] = new JsonArray(new JsonObject {
+        var body = BuildAnthropicEnvelope(systemInstruction, maxOutputTokens,
+            new JsonArray(new JsonObject {
                 ["role"] = "user",
                 ["content"] = hasFiles ? BuildAnthropicContentBlocks(prompt, files!) : JsonValue.Create(prompt)
-            })
-        };
-
-        if (!string.IsNullOrEmpty(systemInstruction)) {
-            body["system"] = systemInstruction;
-        }
+            }));
 
         // The default encoder escapes '+' in base64 as \u002B; only relax it when files are sent
         // so text-only bodies stay byte-identical.
@@ -612,15 +636,7 @@ public class VertexAILibrary : IVertexAI {
         }
         FlushToolResults();
 
-        var body = new JsonObject {
-            ["anthropic_version"] = "vertex-2023-10-16",
-            ["max_tokens"] = maxOutputTokens > 0 ? maxOutputTokens : DefaultMaxOutputTokens,
-            ["messages"] = messages
-        };
-
-        if (!string.IsNullOrEmpty(systemInstruction)) {
-            body["system"] = systemInstruction;
-        }
+        var body = BuildAnthropicEnvelope(systemInstruction, maxOutputTokens, messages);
 
         var tools = ConvertTools(toolsJson);
         if (tools != null) {
@@ -633,6 +649,28 @@ public class VertexAILibrary : IVertexAI {
         }
 
         return body.ToJsonString();
+    }
+
+    private static int ResolveMaxOutputTokens(int maxOutputTokens)
+        => maxOutputTokens > 0 ? maxOutputTokens : DefaultMaxOutputTokens;
+
+    /// <summary>
+    /// The part of the Anthropic Messages body shared by every request: version, max_tokens,
+    /// system and messages. Callers add their own extras (tools, tool_choice).
+    /// </summary>
+    private static JsonObject BuildAnthropicEnvelope(
+        string? systemInstruction, int maxOutputTokens, JsonArray messages) {
+        var body = new JsonObject {
+            ["anthropic_version"] = AnthropicVersion,
+            ["max_tokens"] = ResolveMaxOutputTokens(maxOutputTokens),
+            ["messages"] = messages
+        };
+
+        if (!string.IsNullOrEmpty(systemInstruction)) {
+            body["system"] = systemInstruction;
+        }
+
+        return body;
     }
 
     private static JsonArray BuildAnthropicContentBlocks(string prompt, IReadOnlyList<ResolvedFile> files) {
@@ -983,7 +1021,7 @@ public class VertexAILibrary : IVertexAI {
     /// </summary>
     private static GenerationConfig BuildGenerationConfig(int maxOutputTokens, decimal temperature) {
         var config = new GenerationConfig {
-            MaxOutputTokens = maxOutputTokens > 0 ? maxOutputTokens : DefaultMaxOutputTokens
+            MaxOutputTokens = ResolveMaxOutputTokens(maxOutputTokens)
         };
 
         if (temperature >= 0m) {
@@ -1036,6 +1074,11 @@ public class VertexAILibrary : IVertexAI {
         }
     }
 
+    // A publisher added to _supportedPublishers without a dispatch arm fails loudly
+    // instead of silently falling into the Gemini gRPC path.
+    private static NotSupportedException UnhandledPublisher(string publisher)
+        => new($"Publisher '{publisher}' has no transport implemented.");
+
     /// <summary>
     /// Throws an ArgumentException if the publisher is not in the supported list.
     /// </summary>
@@ -1044,6 +1087,26 @@ public class VertexAILibrary : IVertexAI {
             throw new ArgumentException(
                 $"Publisher '{publisher}' is not supported. " +
                 $"Call GetSupportedPublishers() to see the full list.");
+        }
+    }
+
+    // ProjectId and ModelId are interpolated into the request path that receives the bearer
+    // token, so they must not be able to contain '/', '?', '#' or '..' path tricks.
+    private static readonly Regex _projectIdPattern = new(
+        "^[a-z][a-z0-9-]{4,28}[a-z0-9]$", RegexOptions.CultureInvariant);
+    private static readonly Regex _modelIdPattern = new(
+        "^[A-Za-z0-9][A-Za-z0-9._@-]{0,127}$", RegexOptions.CultureInvariant);
+
+    private static void ValidateProjectId(string projectId) {
+        if (projectId is null || !_projectIdPattern.IsMatch(projectId)) {
+            throw new ArgumentException("ProjectId is not a valid Google Cloud project ID.");
+        }
+    }
+
+    private static void ValidateModelId(string modelId) {
+        if (modelId is null || !_modelIdPattern.IsMatch(modelId) || modelId.Contains("..")) {
+            throw new ArgumentException(
+                "ModelId contains invalid characters. Use letters, digits, '.', '_', '-' and '@' only.");
         }
     }
 

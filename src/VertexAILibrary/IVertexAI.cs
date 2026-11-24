@@ -217,7 +217,7 @@ public interface IVertexAI {
                       "Use 'system' messages for instructions, then alternating 'user' and 'assistant' messages. " +
                       "FinishReason is publisher-specific (e.g. Stop, MaxTokens for google; end_turn, max_tokens, tool_use for anthropic). " +
                       "Tool calling (anthropic only): pass the tool definitions in ToolsJson; when the model wants to call tools, " +
-                      "FinishReason is 'tool_use' and ToolCallsJson holds the calls (it is empty for any other FinishReason, e.g. max_tokens: raise MaxOutputTokens). Run them, then call Chat again with the assistant " +
+                      "FinishReason is 'tool_use' and ToolCallsJson holds the calls (it is empty for any other FinishReason, e.g. max_tokens: raise MaxOutputTokens). Run them, then call Chat again with the same ToolsJson (required by Anthropic), the earlier messages, the assistant " +
                       "message (ToolCallsJson) followed by one 'tool' message per call (ToolCallId + Content).",
         ReturnName = "ResponseText"
     )]
