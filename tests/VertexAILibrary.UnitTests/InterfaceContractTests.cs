@@ -11,6 +11,7 @@ namespace VertexAILibrary.UnitTests
     public class InterfaceContractTests
     {
         private static readonly string[] _outputFileFields = { "FileName", "MimeType", "Content" };
+        private static readonly string[] _chatMessageFields = { "Role", "Content", "ToolCallId", "ToolCallsJson" };
         private static readonly Type[] _outputFileFieldTypes = { typeof(string), typeof(string), typeof(byte[]) };
 
         private static readonly Dictionary<string, string[]> ExpectedSignatures = new()
@@ -126,6 +127,52 @@ namespace VertexAILibrary.UnitTests
             Assert.All(fields, f => Assert.NotNull(f.Attr));
             Assert.Equal(_outputFileFieldTypes, fields.Select(f => f.PropertyType));
             Assert.True(fields.Single(f => f.Name == "Content").Attr!.IsMandatory);
+        }
+
+        [Fact]
+        public void ChatMessage_IsPublicNonNestedOdcStructure()
+        {
+            var type = typeof(ChatMessage);
+
+            Assert.True(type.IsValueType);
+            Assert.True(type.IsPublic);
+            Assert.False(type.IsNested);
+            Assert.NotNull(type.GetCustomAttribute<OSStructureAttribute>());
+
+            var fields = type.GetProperties()
+                .Select(p => (p.Name, p.PropertyType, Attr: p.GetCustomAttribute<OSStructureFieldAttribute>()))
+                .ToList();
+
+            Assert.Equal(_chatMessageFields, fields.Select(f => f.Name));
+            Assert.All(fields, f => Assert.NotNull(f.Attr));
+            Assert.All(fields, f => Assert.Equal(typeof(string), f.PropertyType));
+            Assert.All(fields, f => Assert.False(string.IsNullOrWhiteSpace(f.Attr!.Description), $"{f.Name} has no description"));
+        }
+
+        [Fact]
+        public void Chat_IsDocumented()
+        {
+            var method = Assert.Single(Actions, m => m.Name == "Chat");
+
+            var action = method.GetCustomAttribute<OSActionAttribute>();
+            Assert.NotNull(action);
+            Assert.Equal("ResponseText", action!.ReturnName);
+            Assert.Contains("tool_use", action.Description);
+            Assert.Contains("ToolCallsJson", action.Description);
+
+            foreach (var parameter in method.GetParameters())
+                Assert.False(string.IsNullOrWhiteSpace(parameter.GetCustomAttribute<OSParameterAttribute>()?.Description),
+                    $"Chat.{parameter.Name} has no description");
+
+            var messages = method.GetParameters().Single(p => p.Name == "Messages")
+                .GetCustomAttribute<OSParameterAttribute>()!.Description;
+            Assert.Contains("'tool'", messages);
+            Assert.Contains("ToolCallId", messages);
+            Assert.Contains("ToolCallsJson", messages);
+
+            var temperature = method.GetParameters().Single(p => p.Name == "Temperature")
+                .GetCustomAttribute<OSParameterAttribute>()!.Description;
+            Assert.Contains("Ignored for Anthropic", temperature);
         }
 
         [Fact]

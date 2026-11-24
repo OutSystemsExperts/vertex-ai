@@ -14,6 +14,11 @@ namespace VertexAILibrary.UnitTests
             [{"id":"toolu_1","type":"function","function":{"name":"get_weather","arguments":"{\"city\":\"Lisbon\"}"}}]
             """;
 
+        private const string TwoCalls = """
+            [{"id":"toolu_1","type":"function","function":{"name":"get_weather","arguments":"{\"city\":\"Lisbon\"}"}},
+             {"id":"toolu_2","type":"function","function":{"name":"get_weather","arguments":"{\"city\":\"Porto\"}"}}]
+            """;
+
         private static JsonNode Body(IEnumerable<ChatMessage> messages, string? tools = null, string? toolChoice = null)
         {
             var (system, turns) = Lib.SplitMessages(messages);
@@ -123,18 +128,22 @@ namespace VertexAILibrary.UnitTests
             var body = Body(new[]
             {
                 new ChatMessage { Role = "user", Content = "q" },
-                new ChatMessage { Role = "assistant", Content = "", ToolCallsJson = Calls },
+                new ChatMessage { Role = "assistant", Content = "", ToolCallsJson = TwoCalls },
                 new ChatMessage { Role = "tool", ToolCallId = "toolu_1", Content = "sunny" },
                 new ChatMessage { Role = "tool", ToolCallId = "toolu_2", Content = "rainy" }
             });
 
             var messages = body["messages"]!.AsArray();
             Assert.Equal(3, messages.Count);
+            Assert.Equal(2, messages[1]!["content"]!.AsArray().Count);
             var results = messages[2]!["content"]!.AsArray();
             Assert.Equal("user", (string?)messages[2]!["role"]);
             Assert.Equal(2, results.Count);
             Assert.Equal("tool_result", (string?)results[0]!["type"]);
             Assert.Equal("toolu_1", (string?)results[0]!["tool_use_id"]);
+            Assert.Equal("sunny", (string?)results[0]!["content"]);
+            Assert.Equal("tool_result", (string?)results[1]!["type"]);
+            Assert.Equal("toolu_2", (string?)results[1]!["tool_use_id"]);
             Assert.Equal("rainy", (string?)results[1]!["content"]);
         }
 
