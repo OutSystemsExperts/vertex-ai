@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Encodings.Web;
@@ -494,20 +495,50 @@ public class VertexAILibrary : IVertexAI {
         var token = BuildCredential(account).UnderlyingCredential
             .GetAccessTokenForRequestAsync().GetAwaiter().GetResult();
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, url) {
-            Content = new StringContent(requestBody, Encoding.UTF8, "application/json")
-        };
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        // ODC aborts actions at 95s, so retries must fit in a smaller overall budget.
+        var deadline = DateTime.UtcNow + RetryBudget;
 
-        using var response = _httpClient.SendAsync(request).GetAwaiter().GetResult();
-        var body = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+        for (var attempt = 0; ; attempt++) {
+            using var request = new HttpRequestMessage(HttpMethod.Post, url) {
+                Content = new StringContent(requestBody, Encoding.UTF8, "application/json")
+            };
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        if (!response.IsSuccessStatusCode) {
+            using var response = _httpClient.SendAsync(request).GetAwaiter().GetResult();
+            var body = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+
+            if (response.IsSuccessStatusCode) {
+                return body;
+            }
+
+            if (response.StatusCode == HttpStatusCode.TooManyRequests && attempt < MaxRateLimitRetries) {
+                var delay = GetRetryDelay(response, attempt);
+
+                if (DateTime.UtcNow + delay < deadline) {
+                    Thread.Sleep(delay);
+                    continue;
+                }
+            }
+
             throw new InvalidOperationException(
                 $"Vertex AI (anthropic) returned {(int)response.StatusCode}: {body}");
         }
+    }
 
-        return body;
+    private const int MaxRateLimitRetries = 3;
+    private static readonly TimeSpan RetryBudget = TimeSpan.FromSeconds(60);
+
+    /// <summary>
+    /// Honors Retry-After when present; otherwise exponential backoff (4s, 8s, 16s) plus jitter.
+    /// </summary>
+    private static TimeSpan GetRetryDelay(HttpResponseMessage response, int attempt) {
+        var retryAfter = response.Headers.RetryAfter;
+
+        if (retryAfter?.Delta is { } delta) {
+            return delta;
+        }
+
+        return TimeSpan.FromSeconds(4 * Math.Pow(2, attempt) + Random.Shared.NextDouble());
     }
 
     /// <summary>
