@@ -48,7 +48,7 @@ namespace VertexAILibrary
             [OSParameter(Description = "The prompt text to send to the model.")]
             string Prompt,
 
-            [OSParameter(Description = "Maximum number of output tokens. Pass 0 to use the default (1024).")]
+            [OSParameter(Description = "Maximum number of output tokens. Pass 0 to use the default (4096).")]
             int MaxOutputTokens,
 
             [OSParameter(Description = "Sampling temperature between 0 and 1. " +
@@ -97,7 +97,7 @@ namespace VertexAILibrary
             [OSParameter(Description = "The user prompt text to send to the model.")]
             string UserPrompt,
 
-            [OSParameter(Description = "Maximum number of output tokens. Pass 0 to use the default (1024).")]
+            [OSParameter(Description = "Maximum number of output tokens. Pass 0 to use the default (4096).")]
             int MaxOutputTokens,
 
             [OSParameter(Description = "Token counts for the call (input, output, total, cache and thinking tokens).")]
@@ -148,7 +148,7 @@ namespace VertexAILibrary
                                        "Supported types depend on the publisher (see README).")]
             List<InputFile> Files,
 
-            [OSParameter(Description = "Maximum number of output tokens. Pass 0 to use the default (1024).")]
+            [OSParameter(Description = "Maximum number of output tokens. Pass 0 to use the default (4096).")]
             int MaxOutputTokens,
 
             [OSParameter(Description = "Sampling temperature between 0 and 1. " +
@@ -199,7 +199,7 @@ namespace VertexAILibrary
                                        "Supported types depend on the publisher (see README).")]
             List<InputFile> Files,
 
-            [OSParameter(Description = "Maximum number of output tokens. Pass 0 to use the default (1024).")]
+            [OSParameter(Description = "Maximum number of output tokens. Pass 0 to use the default (4096).")]
             int MaxOutputTokens,
 
             [OSParameter(Description = "Token counts for the call (input, output, total, cache and thinking tokens).")]
@@ -208,6 +208,67 @@ namespace VertexAILibrary
             [OSParameter(Description = "Files returned by the model (e.g. generated images). Empty when the model returns none; " +
                                        "only google models can return files.")]
             out List<OutputFile> OutputFiles
+        );
+
+        // ─────────────────────────────────────────────────────────────
+        // Chat (multi-turn conversation)
+        // ─────────────────────────────────────────────────────────────
+
+        [OSAction(
+            Description = "Sends a multi-turn conversation to a Vertex AI model and returns the next assistant reply. " +
+                          "Use 'system' messages for instructions, then alternating 'user' and 'assistant' messages. " +
+                          "FinishReason is publisher-specific (e.g. Stop, MaxTokens for google; end_turn, max_tokens, tool_use for anthropic). " +
+                          "Tool calling (anthropic only): pass the tool definitions in ToolsJson; when the model wants to call tools, " +
+                          "FinishReason is 'tool_use' and ToolCallsJson holds the calls. Run them, then call Chat again with the assistant " +
+                          "message (ToolCallsJson) followed by one 'tool' message per call (ToolCallId + Content).",
+            ReturnName = "ResponseText"
+        )]
+        string Chat(
+            [OSParameter(Description = "Google Cloud Project ID.")]
+            string ProjectId,
+
+            [OSParameter(Description = "Google Cloud service account credentials.")]
+            GCPServiceAccount ServiceAccount,
+
+            [OSParameter(Description = "GCP region that will handle the request (single region, multi-region 'eu' / 'us', or 'global' — which has no data-residency guarantee).")]
+            string Region,
+
+            [OSParameter(Description = "Model publisher: 'google' (Gemini) or 'anthropic' (Claude). " +
+                                       "Call GetSupportedPublishers for the full list.")]
+            string Publisher,
+
+            [OSParameter(Description = "Vertex AI model ID.")]
+            string ModelId,
+
+            [OSParameter(Description = "The conversation so far, oldest first. Each item has a Role ('system', 'user' or 'assistant') and Content.")]
+            List<ChatMessage> Messages,
+
+            [OSParameter(Description = "Maximum number of output tokens. Pass 0 to use the default (4096).")]
+            int MaxOutputTokens,
+
+            [OSParameter(Description = "Sampling temperature between 0 and 1. Pass -1 to use the default (0.4 for Google models; " +
+                                       "not sent for Anthropic models, since newer Claude models reject it).")]
+            decimal Temperature,
+
+            [OSParameter(Description = "Tools the model may call, as an OpenAI 'tools' JSON array " +
+                                       "([{\"type\":\"function\",\"function\":{\"name\",\"description\",\"parameters\"}}]). " +
+                                       "Pass an empty string for no tools. Anthropic publisher only.")]
+            string ToolsJson,
+
+            [OSParameter(Description = "Which tool the model may call: empty or 'auto' (model decides), 'none' (no tool calls), " +
+                                       "'required' (must call some tool) or a tool name (must call that tool). " +
+                                       "Anything other than empty/'auto' needs ToolsJson. Anthropic publisher only.")]
+            string ToolChoice,
+
+            [OSParameter(Description = "Token counts for the call (input, output, total, cache and thinking tokens).")]
+            out TokenUsage Usage,
+
+            [OSParameter(Description = "Why generation stopped, as reported by the publisher (e.g. Stop, MaxTokens, end_turn, max_tokens, tool_use).")]
+            out string FinishReason,
+
+            [OSParameter(Description = "Tool calls requested by the model, as an OpenAI 'tool_calls' JSON array " +
+                                       "([{\"id\",\"type\":\"function\",\"function\":{\"name\",\"arguments\"}}]). Empty string when the model made no tool call.")]
+            out string ToolCallsJson
         );
 
         // ─────────────────────────────────────────────────────────────

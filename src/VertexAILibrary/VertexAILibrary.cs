@@ -58,6 +58,16 @@ namespace VertexAILibrary
             new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 
         // ─────────────────────────────────────────────────────────────
+        // Default output token budget, applied when the caller passes 0.
+        // Current Google and Anthropic models think by default and thinking
+        // tokens count against this budget, so it must leave room for both
+        // the thinking pass and the visible answer (Anthropic's minimum
+        // thinking budget alone is 1024 tokens).
+        // ─────────────────────────────────────────────────────────────
+        private const int DefaultMaxOutputTokens = 4096;
+
+
+        // ─────────────────────────────────────────────────────────────
         // GetSupportedPublishers
         // ─────────────────────────────────────────────────────────────
         public List<string> GetSupportedPublishers()
@@ -168,6 +178,38 @@ namespace VertexAILibrary
         }
 
         // ─────────────────────────────────────────────────────────────
+        // Chat
+        // ─────────────────────────────────────────────────────────────
+        public string Chat(
+            string ProjectId,
+            GCPServiceAccount ServiceAccount,
+            string Region,
+            string Publisher,
+            string ModelId,
+            List<ChatMessage> Messages,
+            int MaxOutputTokens,
+            decimal Temperature,
+            string ToolsJson,
+            string ToolChoice,
+            out TokenUsage Usage,
+            out string FinishReason,
+            out string ToolCallsJson)
+        {
+            ValidateRegion(Region);
+            ValidatePublisher(Publisher);
+            ValidateMessages(Messages);
+
+            var result = Publisher == AnthropicPublisher
+                ? GenerateChatAnthropic(ProjectId, ServiceAccount, Region, ModelId, Messages, MaxOutputTokens, ToolsJson, ToolChoice)
+                : GenerateChatGoogle(ProjectId, ServiceAccount, Region, ModelId, Messages, MaxOutputTokens, Temperature, ToolsJson, ToolChoice);
+
+            Usage         = result.Usage;
+            FinishReason  = result.FinishReason;
+            ToolCallsJson = result.ToolCallsJson;
+            return result.Text;
+        }
+
+        // ─────────────────────────────────────────────────────────────
         // TestConnection
         // ─────────────────────────────────────────────────────────────
         public string TestConnection(
@@ -263,6 +305,123 @@ namespace VertexAILibrary
         }
 
         /// <summary>
+        /// Outcome of one model call: the reply text, its token usage and the publisher's stop reason.
+        /// </summary>
+        private sealed record GenerationResult(string Text, TokenUsage Usage, string FinishReason, string ToolCallsJson = "");
+
+        /// <summary>
+        /// One non-system conversation turn. ToolCallId is set for role "tool"; ToolCallsJson for an assistant turn that called tools.
+        /// </summary>
+        internal sealed record Turn(string Role, string Content, string? ToolCallId = null, string? ToolCallsJson = null);
+
+        private static GenerationResult GenerateChatGoogle(
+            string projectId,
+            GCPServiceAccount account,
+            string region,
+            string modelId,
+            IEnumerable<ChatMessage> messages,
+            int maxOutputTokens,
+            decimal temperature,
+            string? toolsJson,
+            string? toolChoice)
+        {
+            var (system, turns) = SplitMessages(messages);
+
+            if (!string.IsNullOrWhiteSpace(toolsJson) || !string.IsNullOrWhiteSpace(toolChoice)
+                || turns.Exists(t => t.Role == "tool" || !string.IsNullOrEmpty(t.ToolCallsJson)))
+                throw new NotSupportedException(
+                    "Tool calling is only supported for the 'anthropic' publisher.");
+
+            var client = BuildClient(account, region);
+
+            var request = new GenerateContentRequest
+            {
+                Model            = BuildModelPath(projectId, region, GooglePublisher, modelId),
+                GenerationConfig = BuildGenerationConfig(maxOutputTokens, temperature)
+            };
+
+            foreach (var turn in turns)
+            {
+                request.Contents.Add(new Content
+                {
+                    // Gemini calls the assistant role "model".
+                    Role  = turn.Role == "assistant" ? "MODEL" : "USER",
+                    Parts = { new Part { Text = turn.Content } }
+                });
+            }
+
+            if (system != null)
+                request.SystemInstruction = new Content { Parts = { new Part { Text = system } } };
+
+            var response = client.GenerateContent(request);
+            var meta = response.UsageMetadata;
+            var usage = meta == null
+                ? default
+                : new TokenUsage
+                {
+                    InputTokens = meta.PromptTokenCount,
+                    OutputTokens = meta.CandidatesTokenCount,
+                    TotalTokens = meta.TotalTokenCount,
+                    // The SDK doesn't expose thoughtsTokenCount; thinking tokens are the remainder of the total.
+                    ThinkingTokens = Math.Max(0, meta.TotalTokenCount - meta.PromptTokenCount - meta.CandidatesTokenCount)
+                };
+
+            return new GenerationResult(ExtractText(response), usage, ExtractGoogleFinishReason(response));
+        }
+
+        private static GenerationResult GenerateChatAnthropic(
+            string projectId,
+            GCPServiceAccount account,
+            string region,
+            string modelId,
+            IEnumerable<ChatMessage> messages,
+            int maxOutputTokens,
+            string? toolsJson,
+            string? toolChoice)
+        {
+            var (system, turns) = SplitMessages(messages);
+
+            var body = PostAnthropic(projectId, account, region, modelId,
+                BuildAnthropicRequestBody(system, turns, maxOutputTokens, toolsJson, toolChoice));
+
+            return new GenerationResult(
+                ExtractAnthropicText(body),
+                ExtractAnthropicUsage(body),
+                ExtractAnthropicStopReason(body),
+                ExtractAnthropicToolCalls(body));
+        }
+
+        /// <summary>
+        /// Splits a conversation into the combined system instruction (null when there is none)
+        /// and the user/assistant turns, in order. Empty system messages are ignored.
+        /// </summary>
+        internal static (string? System, List<Turn> Turns) SplitMessages(IEnumerable<ChatMessage> messages)
+        {
+            var system = new List<string>();
+            var turns  = new List<Turn>();
+
+            foreach (var message in messages)
+            {
+                var role    = NormalizeRole(message.Role);
+                var content = message.Content ?? string.Empty;
+
+                if (role == "system")
+                {
+                    if (content.Length > 0)
+                        system.Add(content);
+                }
+                else
+                {
+                    turns.Add(new Turn(role, content,
+                        string.IsNullOrEmpty(message.ToolCallId) ? null : message.ToolCallId,
+                        string.IsNullOrWhiteSpace(message.ToolCallsJson) ? null : message.ToolCallsJson));
+                }
+            }
+
+            return (system.Count == 0 ? null : string.Join("\n\n", system), turns);
+        }
+
+        /// <summary>
         /// Builds the Gemini GenerateContent request. Files become InlineData parts, in list order,
         /// placed before the text part; the system instruction never carries files.
         /// </summary>
@@ -311,6 +470,18 @@ namespace VertexAILibrary
             int maxOutputTokens,
             IReadOnlyList<ResolvedFile>? files)
         {
+            var body = PostAnthropic(projectId, account, region, modelId,
+                BuildAnthropicRequestBody(systemInstruction, prompt, maxOutputTokens, files));
+
+            return (ExtractAnthropicText(body), ExtractAnthropicUsage(body), new List<OutputFile>());
+        }
+
+        /// <summary>
+        /// Sends an Anthropic Messages request body to Vertex AI rawPredict and returns the response body.
+        /// </summary>
+        private static string PostAnthropic(
+            string projectId, GCPServiceAccount account, string region, string modelId, string requestBody)
+        {
             var url = $"https://{BuildEndpoint(region)}/v1/" +
                       $"{BuildModelPath(projectId, region, AnthropicPublisher, modelId)}:rawPredict";
 
@@ -319,10 +490,7 @@ namespace VertexAILibrary
 
             using var request = new HttpRequestMessage(HttpMethod.Post, url)
             {
-                Content = new StringContent(
-                    BuildAnthropicRequestBody(systemInstruction, prompt, maxOutputTokens, files),
-                    Encoding.UTF8,
-                    "application/json")
+                Content = new StringContent(requestBody, Encoding.UTF8, "application/json")
             };
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
@@ -333,7 +501,7 @@ namespace VertexAILibrary
                 throw new InvalidOperationException(
                     $"Vertex AI (anthropic) returned {(int)response.StatusCode}: {body}");
 
-            return (ExtractAnthropicText(body), ExtractAnthropicUsage(body), new List<OutputFile>());
+            return body;
         }
 
         /// <summary>
@@ -379,7 +547,7 @@ namespace VertexAILibrary
             var body = new JsonObject
             {
                 ["anthropic_version"] = "vertex-2023-10-16",
-                ["max_tokens"] = maxOutputTokens > 0 ? maxOutputTokens : 1024,
+                ["max_tokens"] = maxOutputTokens > 0 ? maxOutputTokens : DefaultMaxOutputTokens,
                 ["messages"] = new JsonArray(new JsonObject
                 {
                     ["role"] = "user",
@@ -393,6 +561,87 @@ namespace VertexAILibrary
             // The default encoder escapes '+' in base64 as \u002B; only relax it when files are sent
             // so text-only bodies stay byte-identical.
             return hasFiles ? body.ToJsonString(_relaxedJsonOptions) : body.ToJsonString();
+        }
+
+        /// <summary>
+        /// Builds the Anthropic Messages request body expected by Vertex AI rawPredict.
+        /// The system instruction goes in the top-level "system" field; turns go in "messages";
+        /// OpenAI-format tool definitions (when given) go in "tools".
+        /// </summary>
+        internal static string BuildAnthropicRequestBody(
+            string? systemInstruction, IEnumerable<Turn> turns, int maxOutputTokens,
+            string? toolsJson = null, string? toolChoice = null)
+        {
+            var messages = new JsonArray();
+            JsonArray? pendingToolResults = null;
+
+            void FlushToolResults()
+            {
+                if (pendingToolResults == null) return;
+                messages.Add(new JsonObject { ["role"] = "user", ["content"] = pendingToolResults });
+                pendingToolResults = null;
+            }
+
+            foreach (var turn in turns)
+            {
+                if (turn.Role == "tool")
+                {
+                    if (string.IsNullOrEmpty(turn.ToolCallId))
+                        throw new ArgumentException("A 'tool' message requires ToolCallId.");
+
+                    // Consecutive tool results must share one user message (Anthropic requires alternating roles).
+                    pendingToolResults ??= new JsonArray();
+                    pendingToolResults.Add(new JsonObject
+                    {
+                        ["type"]        = "tool_result",
+                        ["tool_use_id"] = turn.ToolCallId,
+                        ["content"]     = turn.Content
+                    });
+                    continue;
+                }
+
+                FlushToolResults();
+
+                if (turn.Role == "assistant" && turn.ToolCallsJson != null)
+                {
+                    var blocks = new JsonArray();
+                    if (turn.Content.Length > 0)
+                        blocks.Add(new JsonObject { ["type"] = "text", ["text"] = turn.Content });
+                    foreach (var call in ParseToolCalls(turn.ToolCallsJson))
+                        blocks.Add(call);
+
+                    messages.Add(new JsonObject { ["role"] = "assistant", ["content"] = blocks });
+                }
+                else
+                {
+                    messages.Add(new JsonObject
+                    {
+                        ["role"]    = turn.Role,
+                        ["content"] = turn.Content
+                    });
+                }
+            }
+            FlushToolResults();
+
+            var body = new JsonObject
+            {
+                ["anthropic_version"] = "vertex-2023-10-16",
+                ["max_tokens"]        = maxOutputTokens > 0 ? maxOutputTokens : DefaultMaxOutputTokens,
+                ["messages"]          = messages
+            };
+
+            if (!string.IsNullOrEmpty(systemInstruction))
+                body["system"] = systemInstruction;
+
+            var tools = ConvertTools(toolsJson);
+            if (tools != null)
+                body["tools"] = tools;
+
+            var choice = ConvertToolChoice(toolChoice, tools != null);
+            if (choice != null)
+                body["tool_choice"] = choice;
+
+            return body.ToJsonString();
         }
 
         private static JsonArray BuildAnthropicContentBlocks(string prompt, IReadOnlyList<ResolvedFile> files)
@@ -452,7 +701,133 @@ namespace VertexAILibrary
         }
 
         /// <summary>
-        /// Pulls the first text block from an Anthropic Messages response.
+        /// Maps an OpenAI-style tool choice to Anthropic's "tool_choice": "" / "auto" -> omitted (the default),
+        /// "none" -> none, "required" / "any" -> any, anything else is a tool name -> that tool.
+        /// Returns null when the default applies. A choice other than auto needs tools in the request.
+        /// </summary>
+        internal static JsonObject? ConvertToolChoice(string? toolChoice, bool hasTools)
+        {
+            var choice = toolChoice?.Trim();
+            if (string.IsNullOrEmpty(choice) || choice.Equals("auto", StringComparison.OrdinalIgnoreCase))
+                return null;
+
+            if (!hasTools)
+                throw new ArgumentException("ToolChoice requires ToolsJson to define at least one tool.");
+
+            if (choice.Equals("none", StringComparison.OrdinalIgnoreCase))
+                return new JsonObject { ["type"] = "none" };
+
+            if (choice.Equals("required", StringComparison.OrdinalIgnoreCase) || choice.Equals("any", StringComparison.OrdinalIgnoreCase))
+                return new JsonObject { ["type"] = "any" };
+
+            return new JsonObject { ["type"] = "tool", ["name"] = choice };
+        }
+
+        /// <summary>
+        /// Converts an OpenAI "tools" array into Anthropic tool definitions. Returns null when there are none.
+        /// </summary>
+        internal static JsonArray? ConvertTools(string? toolsJson)
+        {
+            if (string.IsNullOrWhiteSpace(toolsJson))
+                return null;
+
+            if (JsonNode.Parse(toolsJson) is not JsonArray openAiTools)
+                throw new ArgumentException("ToolsJson must be a JSON array.");
+
+            var tools = new JsonArray();
+            foreach (var item in openAiTools)
+            {
+                // Accept {"type":"function","function":{...}} and the flat {...} form.
+                var def  = item?["function"] as JsonObject ?? item as JsonObject
+                    ?? throw new ArgumentException("Each tool in ToolsJson must be a JSON object.");
+                var name = def["name"]?.GetValue<string>();
+                if (string.IsNullOrEmpty(name))
+                    throw new ArgumentException("Each tool in ToolsJson must have a name.");
+
+                var tool = new JsonObject { ["name"] = name };
+
+                var description = def["description"]?.GetValue<string>();
+                if (!string.IsNullOrEmpty(description))
+                    tool["description"] = description;
+
+                var schema = def["parameters"] ?? def["input_schema"];
+                tool["input_schema"] = schema?.DeepClone()
+                    ?? new JsonObject { ["type"] = "object", ["properties"] = new JsonObject() };
+
+                tools.Add(tool);
+            }
+
+            return tools.Count == 0 ? null : tools;
+        }
+
+        /// <summary>
+        /// Converts an OpenAI "tool_calls" array into Anthropic tool_use blocks.
+        /// </summary>
+        private static IEnumerable<JsonObject> ParseToolCalls(string toolCallsJson)
+        {
+            if (JsonNode.Parse(toolCallsJson) is not JsonArray calls)
+                throw new ArgumentException("ToolCallsJson must be a JSON array.");
+
+            foreach (var call in calls)
+            {
+                var fn   = call?["function"];
+                var name = fn?["name"]?.GetValue<string>();
+                var id   = call?["id"]?.GetValue<string>();
+                if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(id))
+                    throw new ArgumentException("Each tool call must have an id and a function name.");
+
+                // OpenAI sends arguments as a JSON string; Anthropic wants the parsed object.
+                var args = fn!["arguments"];
+                JsonNode input = args is JsonValue v && v.TryGetValue<string>(out var text)
+                    ? (string.IsNullOrWhiteSpace(text) ? new JsonObject() : JsonNode.Parse(text) ?? new JsonObject())
+                    : args?.DeepClone() ?? new JsonObject();
+
+                yield return new JsonObject
+                {
+                    ["type"]  = "tool_use",
+                    ["id"]    = id,
+                    ["name"]  = name,
+                    ["input"] = input
+                };
+            }
+        }
+
+        /// <summary>
+        /// Collects the tool_use blocks of an Anthropic response as an OpenAI "tool_calls" JSON array.
+        /// Returns an empty string when the response has none.
+        /// </summary>
+        internal static string ExtractAnthropicToolCalls(string responseBody)
+        {
+            using var doc = JsonDocument.Parse(responseBody);
+
+            if (!doc.RootElement.TryGetProperty("content", out var content)
+                || content.ValueKind != JsonValueKind.Array)
+                return string.Empty;
+
+            var calls = new JsonArray();
+            foreach (var block in content.EnumerateArray())
+            {
+                if (!block.TryGetProperty("type", out var type) || type.GetString() != "tool_use")
+                    continue;
+
+                var input = block.TryGetProperty("input", out var i) ? i.GetRawText() : "{}";
+                calls.Add(new JsonObject
+                {
+                    ["id"]       = block.GetProperty("id").GetString(),
+                    ["type"]     = "function",
+                    ["function"] = new JsonObject
+                    {
+                        ["name"]      = block.GetProperty("name").GetString(),
+                        ["arguments"] = input
+                    }
+                });
+            }
+
+            return calls.Count == 0 ? string.Empty : calls.ToJsonString();
+        }
+
+        /// <summary>
+        /// Pulls the first text block from an Anthropic Messages response (empty when the reply only calls tools).
         /// </summary>
         internal static string ExtractAnthropicText(string responseBody)
         {
@@ -468,7 +843,33 @@ namespace VertexAILibrary
                 }
             }
 
-            throw new InvalidOperationException("Vertex AI (anthropic) returned no text content.");
+            var stopReason = doc.RootElement.TryGetProperty("stop_reason", out var reason)
+                && reason.ValueKind == JsonValueKind.String
+                    ? reason.GetString()
+                    : "unknown";
+
+            // A reply that only calls tools has no text block; that is valid.
+            if (stopReason == "tool_use")
+                return string.Empty;
+
+            throw new InvalidOperationException(
+                $"Vertex AI (anthropic) returned no text content (stop_reason: {stopReason}). " +
+                "If stop_reason is 'max_tokens', the model's thinking consumed the output budget " +
+                "before it could answer — increase MaxOutputTokens.");
+        }
+
+        /// <summary>
+        /// Reads the stop_reason of an Anthropic Messages response (for example end_turn or max_tokens).
+        /// Returns an empty string when the field is missing.
+        /// </summary>
+        internal static string ExtractAnthropicStopReason(string responseBody)
+        {
+            using var doc = JsonDocument.Parse(responseBody);
+
+            return doc.RootElement.TryGetProperty("stop_reason", out var reason)
+                && reason.ValueKind == JsonValueKind.String
+                    ? reason.GetString() ?? string.Empty
+                    : string.Empty;
         }
 
         private static GoogleCredential BuildCredential(GCPServiceAccount account)
@@ -531,7 +932,7 @@ namespace VertexAILibrary
         {
             var config = new GenerationConfig
             {
-                MaxOutputTokens = maxOutputTokens > 0 ? maxOutputTokens : 1024
+                MaxOutputTokens = maxOutputTokens > 0 ? maxOutputTokens : DefaultMaxOutputTokens
             };
 
             if (temperature >= 0m)
@@ -540,6 +941,64 @@ namespace VertexAILibrary
                 config.Temperature = 0.4f; // Vertex AI default
 
             return config;
+        }
+
+        /// <summary>
+        /// Pulls the first text part from the first candidate in a GenerateContentResponse.
+        /// </summary>
+        private static string ExtractText(GenerateContentResponse response)
+        {
+            if (response?.Candidates == null || response.Candidates.Count == 0)
+                throw new InvalidOperationException("Vertex AI returned no candidates.");
+
+            var candidate = response.Candidates[0];
+
+            if (candidate.Content?.Parts == null || candidate.Content.Parts.Count == 0)
+                throw new InvalidOperationException(
+                    $"Vertex AI candidate has no content parts (finish reason: {candidate.FinishReason}). " +
+                    "If the finish reason is MaxTokens, the model's thinking consumed the output budget " +
+                    "before it could answer — increase MaxOutputTokens.");
+
+            return candidate.Content.Parts[0].Text ?? string.Empty;
+        }
+
+        /// <summary>
+        /// Returns the finish reason of the first candidate (for example Stop or MaxTokens).
+        /// Call only after ExtractText has validated that a candidate exists.
+        /// </summary>
+        private static string ExtractGoogleFinishReason(GenerateContentResponse response)
+            => response.Candidates[0].FinishReason.ToString();
+
+        /// <summary>
+        /// Normalises a chat role to "system", "user", "assistant" or "tool" (case-insensitive).
+        /// </summary>
+        private static string NormalizeRole(string? role)
+        {
+            var normalized = role?.Trim().ToLowerInvariant();
+
+            return normalized is "system" or "user" or "assistant" or "tool"
+                ? normalized
+                : throw new ArgumentException(
+                    $"Chat role '{role}' is not supported. Use 'system', 'user', 'assistant' or 'tool'.");
+        }
+
+        /// <summary>
+        /// Checks that a chat has at least one non-system message and that every role is valid.
+        /// </summary>
+        private static void ValidateMessages(IReadOnlyList<ChatMessage>? messages)
+        {
+            if (messages == null || messages.Count == 0)
+                throw new ArgumentException("Messages must contain at least one message.");
+
+            var hasTurn = false;
+            foreach (var message in messages)
+            {
+                if (NormalizeRole(message.Role) != "system")
+                    hasTurn = true;
+            }
+
+            if (!hasTurn)
+                throw new ArgumentException("Messages must contain at least one user or assistant message.");
         }
 
         /// <summary>

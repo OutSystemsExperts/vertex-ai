@@ -26,7 +26,7 @@ namespace VertexAILibrary.UnitTests
         public void TextOnly_IsByteIdenticalToToday()
         {
             Assert.Equal(
-                "{\"anthropic_version\":\"vertex-2023-10-16\",\"max_tokens\":1024,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+                "{\"anthropic_version\":\"vertex-2023-10-16\",\"max_tokens\":4096,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
                 Sut.BuildAnthropicRequestBody(null, "hi", 0));
         }
 
@@ -34,7 +34,7 @@ namespace VertexAILibrary.UnitTests
         public void TextOnlyWithSystem_IsByteIdenticalToToday()
         {
             Assert.Equal(
-                "{\"anthropic_version\":\"vertex-2023-10-16\",\"max_tokens\":1024,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"system\":\"s\"}",
+                "{\"anthropic_version\":\"vertex-2023-10-16\",\"max_tokens\":4096,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"system\":\"s\"}",
                 Sut.BuildAnthropicRequestBody("s", "hi", 0));
         }
 

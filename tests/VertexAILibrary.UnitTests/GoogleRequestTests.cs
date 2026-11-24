@@ -20,7 +20,7 @@ namespace VertexAILibrary.UnitTests
 
             Assert.Equal("projects/my-project/locations/europe-west4/publishers/google/models/gemini-2.0-flash-001",
                 request.Model);
-            Assert.Equal(1024, request.GenerationConfig.MaxOutputTokens);
+            Assert.Equal(4096, request.GenerationConfig.MaxOutputTokens);
             Assert.Equal(0.4f, request.GenerationConfig.Temperature);
 
             var content = Assert.Single(request.Contents);

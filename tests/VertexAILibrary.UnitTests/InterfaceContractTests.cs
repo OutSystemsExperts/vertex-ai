@@ -24,6 +24,13 @@ namespace VertexAILibrary.UnitTests
                 "ModelId:String", "SystemInstruction:String", "UserPrompt:String", "MaxOutputTokens:Int32",
                 "Usage:out TokenUsage", "OutputFiles:out List<OutputFile>"
             },
+            ["Chat"] = new[]
+            {
+                "ProjectId:String", "ServiceAccount:GCPServiceAccount", "Region:String", "Publisher:String",
+                "ModelId:String", "Messages:List<ChatMessage>", "MaxOutputTokens:Int32", "Temperature:Decimal",
+                "ToolsJson:String", "ToolChoice:String", "Usage:out TokenUsage", "FinishReason:out String",
+                "ToolCallsJson:out String"
+            },
             ["TestConnection"] = new[]
             {
                 "ProjectId:String", "ServiceAccount:GCPServiceAccount", "Region:String", "Publisher:String",
@@ -58,6 +65,7 @@ namespace VertexAILibrary.UnitTests
         [Theory]
         [InlineData("GenerateContent")]
         [InlineData("GenerateContentWithSystemPrompt")]
+        [InlineData("Chat")]
         [InlineData("TestConnection")]
         [InlineData("GetSupportedRegions")]
         [InlineData("GetSupportedPublishers")]
