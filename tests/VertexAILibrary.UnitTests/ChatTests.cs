@@ -1,9 +1,9 @@
 using System.Text.Json.Nodes;
 using Xunit;
-using Sut = VertexAILibrary.VertexAILibrary;
 using static VertexAILibrary.UnitTests.TestHelpers;
+using Sut = VertexAILibrary.VertexAILibrary;
 
-namespace VertexAILibrary.UnitTests; 
+namespace VertexAILibrary.UnitTests;
 /// <summary>
 /// Chat validation, system-message merging, multi-turn bodies and the tool-call round trip.
 /// Validation cases must fail before credentials are built, so a dummy account is enough

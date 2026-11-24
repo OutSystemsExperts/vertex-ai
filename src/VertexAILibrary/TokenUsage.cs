@@ -1,6 +1,7 @@
 using OutSystems.ExternalLibraries.SDK;
 
-namespace VertexAILibrary; 
+namespace VertexAILibrary;
+
 /// <summary>
 /// Token counts for a single model call, normalised across publishers.
 /// </summary>

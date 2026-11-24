@@ -1,7 +1,7 @@
 using System.Text.Json.Nodes;
 using Xunit;
-using Sut = VertexAILibrary.VertexAILibrary;
 using static VertexAILibrary.UnitTests.TestHelpers;
+using Sut = VertexAILibrary.VertexAILibrary;
 
 namespace VertexAILibrary.UnitTests;
 

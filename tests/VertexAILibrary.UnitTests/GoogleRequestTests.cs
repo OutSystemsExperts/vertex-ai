@@ -2,7 +2,8 @@ using Google.Cloud.AIPlatform.V1;
 using Xunit;
 using Sut = VertexAILibrary.VertexAILibrary;
 
-namespace VertexAILibrary.UnitTests; 
+namespace VertexAILibrary.UnitTests;
+
 public class GoogleRequestTests {
     private static GenerateContentRequest Build(
         string? systemInstruction = null,

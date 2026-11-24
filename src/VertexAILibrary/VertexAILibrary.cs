@@ -9,7 +9,7 @@ using Google.Cloud.AIPlatform.V1;
 using Google.Protobuf;
 using Grpc.Auth;
 
-namespace VertexAILibrary; 
+namespace VertexAILibrary;
 /// <summary>
 /// Implementation of the IVertexAI OSInterface.
 /// ODC instantiates this class to execute each Server Action.

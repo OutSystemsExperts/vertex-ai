@@ -1,7 +1,8 @@
 using Xunit;
 using Sut = VertexAILibrary.VertexAILibrary;
 
-namespace VertexAILibrary.UnitTests; 
+namespace VertexAILibrary.UnitTests;
+
 /// <summary>
 /// Exercises the public file actions. Every case must fail validation before credentials are
 /// built, so a dummy service account is enough and no network call is made.

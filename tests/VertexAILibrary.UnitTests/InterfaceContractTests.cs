@@ -2,7 +2,7 @@ using System.Reflection;
 using OutSystems.ExternalLibraries.SDK;
 using Xunit;
 
-namespace VertexAILibrary.UnitTests; 
+namespace VertexAILibrary.UnitTests;
 /// <summary>
 /// Guards the ODC action surface: existing actions must not change and new elements must follow
 /// the External Libraries SDK naming rules.

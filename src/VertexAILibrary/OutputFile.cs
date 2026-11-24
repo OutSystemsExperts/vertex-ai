@@ -1,6 +1,7 @@
 using OutSystems.ExternalLibraries.SDK;
 
-namespace VertexAILibrary; 
+namespace VertexAILibrary;
+
 /// <summary>
 /// A binary file returned by the model together with its text response.
 /// </summary>

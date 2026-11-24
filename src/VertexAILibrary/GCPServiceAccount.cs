@@ -1,6 +1,7 @@
 using OutSystems.ExternalLibraries.SDK;
 
-namespace VertexAILibrary; 
+namespace VertexAILibrary;
+
 [OSStructure(
     Description = "Google Cloud service account credentials. " +
                   "Copy each value from the JSON key file downloaded in GCP Console → " +

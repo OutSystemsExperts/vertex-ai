@@ -1,6 +1,7 @@
 using Xunit;
 
-namespace VertexAILibrary.UnitTests; 
+namespace VertexAILibrary.UnitTests;
+
 public class InputFilesTests {
     private const string Google = "google";
     private const string Anthropic = "anthropic";

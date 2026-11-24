@@ -1,6 +1,7 @@
 using Google.Cloud.AIPlatform.V1;
 
-namespace VertexAILibrary; 
+namespace VertexAILibrary;
+
 /// <summary>
 /// Extracts the text and the files from a Gemini response.
 /// </summary>

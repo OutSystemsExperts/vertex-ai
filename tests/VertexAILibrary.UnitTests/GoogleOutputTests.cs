@@ -2,7 +2,8 @@ using Google.Cloud.AIPlatform.V1;
 using Google.Protobuf;
 using Xunit;
 
-namespace VertexAILibrary.UnitTests; 
+namespace VertexAILibrary.UnitTests;
+
 public class GoogleOutputTests {
     private static readonly string[] _expectedFileNames = { "output-1.png", "output-2.pdf" };
 

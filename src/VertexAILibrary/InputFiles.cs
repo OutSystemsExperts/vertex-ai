@@ -1,4 +1,5 @@
-namespace VertexAILibrary; 
+namespace VertexAILibrary;
+
 /// <summary>
 /// An input file whose content was validated and whose MIME type was resolved and normalised.
 /// </summary>

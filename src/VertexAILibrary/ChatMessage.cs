@@ -1,6 +1,7 @@
 using OutSystems.ExternalLibraries.SDK;
 
-namespace VertexAILibrary; 
+namespace VertexAILibrary;
+
 /// <summary>
 /// One message in a multi-turn conversation.
 /// </summary>

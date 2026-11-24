@@ -3,7 +3,8 @@ using System.Text.Json;
 using Xunit;
 using Sut = VertexAILibrary.VertexAILibrary;
 
-namespace VertexAILibrary.UnitTests; 
+namespace VertexAILibrary.UnitTests;
+
 public class AnthropicRequestBodyTests {
     // Bytes whose base64 contains '+' and '/' (0xFB 0xEF 0xBE → "++++").
     private static readonly byte[] PngBytes = { 0x89, 0x50, 0x4E, 0xFB, 0xEF, 0xBE, 0x47 };

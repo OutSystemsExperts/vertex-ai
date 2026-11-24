@@ -1,6 +1,7 @@
 using OutSystems.ExternalLibraries.SDK;
 
-namespace VertexAILibrary; 
+namespace VertexAILibrary;
+
 /// <summary>
 /// A binary file sent to the model together with the prompt.
 /// </summary>

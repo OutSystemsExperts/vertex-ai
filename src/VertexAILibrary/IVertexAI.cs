@@ -1,6 +1,6 @@
 using OutSystems.ExternalLibraries.SDK;
 
-namespace VertexAILibrary; 
+namespace VertexAILibrary;
 /// <summary>
 /// ODC External Library interface for Google Vertex AI.
 /// Each method maps to a Server Action in ODC Studio.
