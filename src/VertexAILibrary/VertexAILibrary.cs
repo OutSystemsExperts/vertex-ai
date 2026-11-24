@@ -839,11 +839,17 @@ namespace VertexAILibrary
 
         /// <summary>
         /// Collects the tool_use blocks of an Anthropic response as an OpenAI "tool_calls" JSON array.
-        /// Returns an empty string when the response has none.
+        /// Returns an empty string when the response has none, or when it did not stop with
+        /// stop_reason "tool_use" (for example a max_tokens cut-off, where the calls may be incomplete).
         /// </summary>
         internal static string ExtractAnthropicToolCalls(string responseBody)
         {
             using var doc = JsonDocument.Parse(responseBody);
+
+            if (!doc.RootElement.TryGetProperty("stop_reason", out var stop)
+                || stop.ValueKind != JsonValueKind.String
+                || stop.GetString() != "tool_use")
+                return string.Empty;
 
             if (!doc.RootElement.TryGetProperty("content", out var content)
                 || content.ValueKind != JsonValueKind.Array)
@@ -899,8 +905,8 @@ namespace VertexAILibrary
 
             throw new InvalidOperationException(
                 $"Vertex AI (anthropic) returned no text content (stop_reason: {stopReason}). " +
-                "If stop_reason is 'max_tokens', the model's thinking consumed the output budget " +
-                "before it could answer — increase MaxOutputTokens.");
+                "If stop_reason is 'max_tokens', the output budget ran out (thinking or a tool call) " +
+                "before the model could answer — increase MaxOutputTokens.");
         }
 
         /// <summary>

@@ -92,7 +92,7 @@ System messages are combined into the system instruction for both publishers.
 | `ChatMessage.ToolCallsJson` | in | On an `assistant` message: the calls that turn made (replay `ToolCallsJson` from the previous reply). |
 | `ChatMessage.ToolCallId` | in | On a `tool` message: the `id` of the call it answers; `Content` is the tool result. |
 
-Loop: call `Chat` -> if `ToolCallsJson` is not empty, run the tools -> call `Chat` again with the earlier messages, the assistant message (`ToolCallsJson`) and one `tool` message per call -> repeat until `ToolCallsJson` is empty.
+Loop: call `Chat` -> if `FinishReason` is `tool_use` (`ToolCallsJson` is not empty), run the tools -> call `Chat` again with the earlier messages, the assistant message (`ToolCallsJson`) and one `tool` message per call -> repeat until `FinishReason` is no longer `tool_use`. A `max_tokens` finish never returns `ToolCallsJson`; raise `MaxOutputTokens` and retry.
 
 Passing tools (or `tool` messages) with the `google` publisher raises an error; it is not supported yet.
 

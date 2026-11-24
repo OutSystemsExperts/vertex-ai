@@ -195,6 +195,25 @@ namespace VertexAILibrary.UnitTests
         }
 
         [Fact]
+        public void TruncatedToolUse_WithText_ReturnsNoToolCalls()
+        {
+            const string body = """{"content":[{"type":"text","text":"let me check"},{"type":"tool_use","id":"toolu_1","name":"get_weather","input":{}}],"stop_reason":"max_tokens"}""";
+
+            Assert.Equal(string.Empty, Lib.ExtractAnthropicToolCalls(body));
+            Assert.Equal("max_tokens", Lib.ExtractAnthropicStopReason(body));
+        }
+
+        [Fact]
+        public void TruncatedToolUse_WithoutText_ThrowsNeutralMessage()
+        {
+            const string body = """{"content":[{"type":"tool_use","id":"toolu_1","name":"get_weather","input":{}}],"stop_reason":"max_tokens"}""";
+
+            Assert.Equal(string.Empty, Lib.ExtractAnthropicToolCalls(body));
+            var ex = Assert.Throws<InvalidOperationException>(() => Lib.ExtractAnthropicText(body));
+            Assert.Contains("thinking or a tool call", ex.Message);
+        }
+
+        [Fact]
         public void EmptyResponse_WithoutToolUse_StillThrows()
         {
             Assert.Throws<InvalidOperationException>(() =>
