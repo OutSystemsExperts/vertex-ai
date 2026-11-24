@@ -189,11 +189,11 @@ namespace VertexAILibrary
             List<ChatMessage> Messages,
             int MaxOutputTokens,
             decimal Temperature,
-            string ToolsJson,
-            string ToolChoice,
             out TokenUsage Usage,
             out string FinishReason,
-            out string ToolCallsJson)
+            out string ToolCallsJson,
+            string ToolsJson = "",
+            string ToolChoice = "")
         {
             ValidateRegion(Region);
             ValidatePublisher(Publisher);

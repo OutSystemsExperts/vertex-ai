@@ -260,7 +260,7 @@ namespace VertexAILibrary.UnitTests
 
             // Passes the tool guard; fails later on the invalid credentials, not with NotSupportedException.
             var ex = Record.Exception(() => lib.Chat("p", account, "us-central1", "google", "m",
-                new List<ChatMessage>(Hi), 0, -1m, tools, choice, out _, out _, out _));
+                new List<ChatMessage>(Hi), 0, -1m, out _, out _, out _, ToolsJson: tools, ToolChoice: choice));
 
             Assert.IsNotType<NotSupportedException>(ex);
         }
@@ -272,8 +272,8 @@ namespace VertexAILibrary.UnitTests
             var account = new GCPServiceAccount { ClientEmail = "a@b", PrivateKey = "k" };
 
             Assert.Throws<NotSupportedException>(() => lib.Chat("p", account, "us-central1", "google", "m",
-                new List<ChatMessage> { new() { Role = "user", Content = "hi" } }, 0, -1m, Tools, "",
-                out _, out _, out _));
+                new List<ChatMessage> { new() { Role = "user", Content = "hi" } }, 0, -1m,
+                out _, out _, out _, ToolsJson: Tools));
         }
 
         private static readonly ChatMessage[] Hi = { new() { Role = "user", Content = "hi" } };
@@ -319,8 +319,8 @@ namespace VertexAILibrary.UnitTests
             var account = new GCPServiceAccount { ClientEmail = "a@b", PrivateKey = "k" };
 
             Assert.Throws<NotSupportedException>(() => lib.Chat("p", account, "us-central1", "google", "m",
-                new List<ChatMessage>(Hi), 0, -1m, "", "required",
-                out _, out _, out _));
+                new List<ChatMessage>(Hi), 0, -1m,
+                out _, out _, out _, ToolChoice: "required"));
         }
     }
 }

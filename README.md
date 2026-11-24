@@ -85,8 +85,8 @@ System messages are combined into the system instruction for both publishers.
 
 | Parameter | Direction | Meaning |
 |---|---|---|
-| `ToolsJson` | in | OpenAI `tools` array (`[{"type":"function","function":{"name","description","parameters"}}]`). Empty string = no tools. |
-| `ToolChoice` | in | Empty or `auto` = the model decides (default). `none` = no tool calls. `required` = must call some tool. Any other value = a tool name it must call. Anything but empty/`auto` needs `ToolsJson`. |
+| `ToolsJson` | in, optional | OpenAI `tools` array (`[{"type":"function","function":{"name","description","parameters"}}]`). Empty string = no tools. |
+| `ToolChoice` | in, optional | Empty or `auto` = the model decides (default). `none` = no tool calls. `required` = must call some tool. Any other value = a tool name it must call. Anything but empty/`auto` needs `ToolsJson`. |
 | `ToolCallsJson` | out | OpenAI `tool_calls` array (`[{"id","type":"function","function":{"name","arguments"}}]`) when the model wants to call tools, otherwise empty. |
 | `FinishReason` | out | `tool_use` when the model stopped to call tools. `ResponseText` may be empty in that case. |
 | `ChatMessage.ToolCallsJson` | in | On an `assistant` message: the calls that turn made (replay `ToolCallsJson` from the previous reply). |
@@ -95,8 +95,6 @@ System messages are combined into the system instruction for both publishers.
 Loop: call `Chat` -> if `FinishReason` is `tool_use` (`ToolCallsJson` is not empty), run the tools -> call `Chat` again with the earlier messages, the assistant message (`ToolCallsJson`) and one `tool` message per call -> repeat until `FinishReason` is no longer `tool_use`. A `max_tokens` finish never returns `ToolCallsJson`; raise `MaxOutputTokens` and retry.
 
 With the `google` publisher, tool calling is not supported yet: a `ToolsJson` with at least one tool, a `ToolChoice` other than empty/`auto`, a `tool` message, or an assistant message with `ToolCallsJson` raises an error naming the trigger. An empty `ToolsJson`, `[]` and `auto` are accepted and mean no tools.
-
-> **Breaking change:** `Chat` gained the mandatory `ToolsJson` and `ToolChoice` inputs and `ToolCallsJson` output, and `ChatMessage` gained two fields. Consumers must refresh the library reference and pass `""` for `ToolsJson` and `ToolChoice` to keep the old behaviour.
 
 ## Using the library as a custom AI model on ODC
 

@@ -32,8 +32,8 @@ namespace VertexAILibrary.UnitTests
             {
                 "ProjectId:String", "ServiceAccount:GCPServiceAccount", "Region:String", "Publisher:String",
                 "ModelId:String", "Messages:List<ChatMessage>", "MaxOutputTokens:Int32", "Temperature:Decimal",
-                "ToolsJson:String", "ToolChoice:String", "Usage:out TokenUsage", "FinishReason:out String",
-                "ToolCallsJson:out String"
+                "Usage:out TokenUsage", "FinishReason:out String", "ToolCallsJson:out String",
+                "ToolsJson:String", "ToolChoice:String"
             },
             ["TestConnection"] = new[]
             {
@@ -147,6 +147,23 @@ namespace VertexAILibrary.UnitTests
             Assert.All(fields, f => Assert.NotNull(f.Attr));
             Assert.All(fields, f => Assert.Equal(typeof(string), f.PropertyType));
             Assert.All(fields, f => Assert.False(string.IsNullOrWhiteSpace(f.Attr!.Description), $"{f.Name} has no description"));
+        }
+
+        [Fact]
+        public void Chat_ToolInputs_AreOptionalWithEmptyDefault()
+        {
+            var parameters = Assert.Single(Actions, m => m.Name == "Chat").GetParameters();
+
+            foreach (var name in new[] { "ToolsJson", "ToolChoice" })
+            {
+                var parameter = parameters.Single(p => p.Name == name);
+                Assert.True(parameter.IsOptional, $"{name} must be optional");
+                Assert.Equal(string.Empty, parameter.DefaultValue);
+            }
+
+            // C# needs every required parameter (including out parameters) before the optional ones.
+            Assert.All(parameters.Where(p => !p.IsOptional), p =>
+                Assert.True(p.Position < parameters.First(o => o.IsOptional).Position));
         }
 
         [Fact]

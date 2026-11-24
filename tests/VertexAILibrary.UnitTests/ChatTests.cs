@@ -28,7 +28,7 @@ namespace VertexAILibrary.UnitTests
             => new() { Role = role, Content = content!, ToolCallId = toolCallId!, ToolCallsJson = toolCallsJson! };
 
         private static void CallChat(string region, string publisher, List<ChatMessage>? messages)
-            => new Sut().Chat("p", DummyAccount, region, publisher, "m", messages!, 0, -1m, "", "",
+            => new Sut().Chat("p", DummyAccount, region, publisher, "m", messages!, 0, -1m,
                 out _, out _, out _);
 
         private static JsonNode Body(IEnumerable<ChatMessage> messages)

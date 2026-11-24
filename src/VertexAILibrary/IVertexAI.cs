@@ -252,16 +252,6 @@ namespace VertexAILibrary
                                        "Ignored for Anthropic models (never sent, since newer Claude models reject it).")]
             decimal Temperature,
 
-            [OSParameter(Description = "Tools the model may call, as an OpenAI 'tools' JSON array " +
-                                       "([{\"type\":\"function\",\"function\":{\"name\",\"description\",\"parameters\"}}]). " +
-                                       "Pass an empty string or [] for no tools. Tool calling is Anthropic publisher only.")]
-            string ToolsJson,
-
-            [OSParameter(Description = "Which tool the model may call: empty or 'auto' (model decides), 'none' (no tool calls), " +
-                                       "'required' (must call some tool) or a tool name (must call that tool). " +
-                                       "Anything other than empty/'auto' needs ToolsJson. Tool calling is Anthropic publisher only.")]
-            string ToolChoice,
-
             [OSParameter(Description = "Token counts for the call (input, output, total, cache and thinking tokens).")]
             out TokenUsage Usage,
 
@@ -270,7 +260,17 @@ namespace VertexAILibrary
 
             [OSParameter(Description = "Tool calls requested by the model, as an OpenAI 'tool_calls' JSON array " +
                                        "([{\"id\",\"type\":\"function\",\"function\":{\"name\",\"arguments\"}}]). Empty string when the model made no tool call.")]
-            out string ToolCallsJson
+            out string ToolCallsJson,
+
+            [OSParameter(Description = "Tools the model may call, as an OpenAI 'tools' JSON array " +
+                                       "([{\"type\":\"function\",\"function\":{\"name\",\"description\",\"parameters\"}}]). " +
+                                       "Pass an empty string or [] for no tools. Tool calling is Anthropic publisher only.")]
+            string ToolsJson = "",
+
+            [OSParameter(Description = "Which tool the model may call: empty or 'auto' (model decides), 'none' (no tool calls), " +
+                                       "'required' (must call some tool) or a tool name (must call that tool). " +
+                                       "Anything other than empty/'auto' needs ToolsJson. Tool calling is Anthropic publisher only.")]
+            string ToolChoice = ""
         );
 
         // ─────────────────────────────────────────────────────────────
