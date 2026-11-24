@@ -6,6 +6,8 @@ namespace VertexAILibrary.UnitTests
 {
     public class GoogleOutputTests
     {
+        private static readonly string[] _expectedFileNames = { "output-1.png", "output-2.pdf" };
+
         private static Part Text(string text) => new() { Text = text };
 
         private static Part Blob(string mimeType, params byte[] data)
@@ -55,7 +57,7 @@ namespace VertexAILibrary.UnitTests
             var (_, files) = GoogleOutput.Extract(
                 Response(Blob("image/png", 1), Text("x"), Blob("application/pdf", 2)));
 
-            Assert.Equal(new[] { "output-1.png", "output-2.pdf" }, files.Select(f => f.FileName));
+            Assert.Equal(_expectedFileNames, files.Select(f => f.FileName));
             Assert.Equal(new byte[] { 2 }, files[1].Content);
         }
 

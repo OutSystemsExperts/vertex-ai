@@ -10,6 +10,9 @@ namespace VertexAILibrary.UnitTests
     /// </summary>
     public class InterfaceContractTests
     {
+        private static readonly string[] _outputFileFields = { "FileName", "MimeType", "Content" };
+        private static readonly Type[] _outputFileFieldTypes = { typeof(string), typeof(string), typeof(byte[]) };
+
         private static readonly Dictionary<string, string[]> ExpectedSignatures = new()
         {
             ["GenerateContent"] = new[]
@@ -119,9 +122,9 @@ namespace VertexAILibrary.UnitTests
                 .Select(p => (p.Name, p.PropertyType, Attr: p.GetCustomAttribute<OSStructureFieldAttribute>()))
                 .ToList();
 
-            Assert.Equal(new[] { "FileName", "MimeType", "Content" }, fields.Select(f => f.Name));
+            Assert.Equal(_outputFileFields, fields.Select(f => f.Name));
             Assert.All(fields, f => Assert.NotNull(f.Attr));
-            Assert.Equal(new[] { typeof(string), typeof(string), typeof(byte[]) }, fields.Select(f => f.PropertyType));
+            Assert.Equal(_outputFileFieldTypes, fields.Select(f => f.PropertyType));
             Assert.True(fields.Single(f => f.Name == "Content").Attr!.IsMandatory);
         }
 
@@ -139,9 +142,9 @@ namespace VertexAILibrary.UnitTests
                 .Select(p => (p.Name, p.PropertyType, Attr: p.GetCustomAttribute<OSStructureFieldAttribute>()))
                 .ToList();
 
-            Assert.Equal(new[] { "FileName", "MimeType", "Content" }, fields.Select(f => f.Name));
+            Assert.Equal(_outputFileFields, fields.Select(f => f.Name));
             Assert.All(fields, f => Assert.NotNull(f.Attr));
-            Assert.Equal(new[] { typeof(string), typeof(string), typeof(byte[]) }, fields.Select(f => f.PropertyType));
+            Assert.Equal(_outputFileFieldTypes, fields.Select(f => f.PropertyType));
         }
 
         private static void AssertValidNames(IReadOnlyCollection<string> names)

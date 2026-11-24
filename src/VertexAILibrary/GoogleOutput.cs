@@ -50,7 +50,10 @@ namespace VertexAILibrary
             var candidate = response.Candidates[0];
 
             if (candidate.Content?.Parts == null || candidate.Content.Parts.Count == 0)
-                throw new InvalidOperationException("Vertex AI candidate has no content parts.");
+                throw new InvalidOperationException(
+                    $"Vertex AI candidate has no content parts (finish reason: {candidate.FinishReason}). " +
+                    "If the finish reason is MaxTokens, the model's thinking consumed the output budget " +
+                    "before it could answer — increase MaxOutputTokens.");
 
             var text = new System.Text.StringBuilder();
             var files = new List<OutputFile>();

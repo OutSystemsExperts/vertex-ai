@@ -287,21 +287,9 @@ namespace VertexAILibrary
                 maxOutputTokens, temperature, files);
 
             var response = client.GenerateContent(request);
-            var meta = response.UsageMetadata;
-            var usage = meta == null
-                ? default
-                : new TokenUsage
-                {
-                    InputTokens = meta.PromptTokenCount,
-                    OutputTokens = meta.CandidatesTokenCount,
-                    TotalTokens = meta.TotalTokenCount,
-                    // The SDK doesn't expose thoughtsTokenCount; thinking tokens are the remainder of the total.
-                    ThinkingTokens = Math.Max(0, meta.TotalTokenCount - meta.PromptTokenCount - meta.CandidatesTokenCount)
-                };
-
             var (text, outputFiles) = GoogleOutput.Extract(response);
 
-            return (text, usage, outputFiles);
+            return (text, ExtractGoogleUsage(response), outputFiles);
         }
 
         /// <summary>
@@ -354,19 +342,9 @@ namespace VertexAILibrary
                 request.SystemInstruction = new Content { Parts = { new Part { Text = system } } };
 
             var response = client.GenerateContent(request);
-            var meta = response.UsageMetadata;
-            var usage = meta == null
-                ? default
-                : new TokenUsage
-                {
-                    InputTokens = meta.PromptTokenCount,
-                    OutputTokens = meta.CandidatesTokenCount,
-                    TotalTokens = meta.TotalTokenCount,
-                    // The SDK doesn't expose thoughtsTokenCount; thinking tokens are the remainder of the total.
-                    ThinkingTokens = Math.Max(0, meta.TotalTokenCount - meta.PromptTokenCount - meta.CandidatesTokenCount)
-                };
+            var (text, _) = GoogleOutput.Extract(response);
 
-            return new GenerationResult(ExtractText(response), usage, ExtractGoogleFinishReason(response));
+            return new GenerationResult(text, ExtractGoogleUsage(response), ExtractGoogleFinishReason(response));
         }
 
         private static GenerationResult GenerateChatAnthropic(
@@ -502,6 +480,26 @@ namespace VertexAILibrary
                     $"Vertex AI (anthropic) returned {(int)response.StatusCode}: {body}");
 
             return body;
+        }
+
+        /// <summary>
+        /// Reads the token counts from a Gemini response; missing usage metadata counts as 0.
+        /// </summary>
+        internal static TokenUsage ExtractGoogleUsage(GenerateContentResponse response)
+        {
+            var meta = response.UsageMetadata;
+
+            if (meta == null)
+                return default;
+
+            return new TokenUsage
+            {
+                InputTokens = meta.PromptTokenCount,
+                OutputTokens = meta.CandidatesTokenCount,
+                TotalTokens = meta.TotalTokenCount,
+                // The SDK doesn't expose thoughtsTokenCount; thinking tokens are the remainder of the total.
+                ThinkingTokens = Math.Max(0, meta.TotalTokenCount - meta.PromptTokenCount - meta.CandidatesTokenCount)
+            };
         }
 
         /// <summary>
@@ -944,30 +942,13 @@ namespace VertexAILibrary
         }
 
         /// <summary>
-        /// Pulls the first text part from the first candidate in a GenerateContentResponse.
-        /// </summary>
-        private static string ExtractText(GenerateContentResponse response)
-        {
-            if (response?.Candidates == null || response.Candidates.Count == 0)
-                throw new InvalidOperationException("Vertex AI returned no candidates.");
-
-            var candidate = response.Candidates[0];
-
-            if (candidate.Content?.Parts == null || candidate.Content.Parts.Count == 0)
-                throw new InvalidOperationException(
-                    $"Vertex AI candidate has no content parts (finish reason: {candidate.FinishReason}). " +
-                    "If the finish reason is MaxTokens, the model's thinking consumed the output budget " +
-                    "before it could answer — increase MaxOutputTokens.");
-
-            return candidate.Content.Parts[0].Text ?? string.Empty;
-        }
-
-        /// <summary>
-        /// Returns the finish reason of the first candidate (for example Stop or MaxTokens).
-        /// Call only after ExtractText has validated that a candidate exists.
+        /// Returns the finish reason of the first candidate (for example Stop or MaxTokens),
+        /// or an empty string when the response has no candidate.
         /// </summary>
         private static string ExtractGoogleFinishReason(GenerateContentResponse response)
-            => response.Candidates[0].FinishReason.ToString();
+            => response?.Candidates is { Count: > 0 } candidates
+                ? candidates[0].FinishReason.ToString()
+                : string.Empty;
 
         /// <summary>
         /// Normalises a chat role to "system", "user", "assistant" or "tool" (case-insensitive).
