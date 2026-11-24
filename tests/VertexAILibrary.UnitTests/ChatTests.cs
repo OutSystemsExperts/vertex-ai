@@ -197,6 +197,31 @@ namespace VertexAILibrary.UnitTests
             Assert.Equal("get_time", (string?)calls[1]!["function"]!["name"]);
         }
 
+        [Theory]
+        [InlineData("""{"type":"tool_use","name":"f","input":{}}""")]
+        [InlineData("""{"type":"tool_use","id":"t1","input":{}}""")]
+        [InlineData("""{"type":"tool_use","id":7,"name":"f","input":{}}""")]
+        [InlineData("""{"type":"tool_use","id":"t1","name":null,"input":{}}""")]
+        public void ToolUseBlock_WithoutStringIdOrName_ThrowsInvalidOperation(string block)
+        {
+            var body = $$"""{"content":[{{block}}],"stop_reason":"tool_use"}""";
+
+            var ex = Assert.Throws<InvalidOperationException>(() => Sut.ExtractAnthropicToolCalls(body));
+
+            Assert.Equal("Vertex AI (anthropic) returned a tool_use block without id/name.", ex.Message);
+        }
+
+        [Fact]
+        public void NonObjectAndNonStringTypeBlocks_AreSkipped()
+        {
+            const string body = """{"content":["x",{"type":5},{"type":"tool_use","id":"t1","name":"f"}],"stop_reason":"tool_use"}""";
+
+            var calls = JsonNode.Parse(Sut.ExtractAnthropicToolCalls(body))!.AsArray();
+
+            Assert.Single(calls);
+            Assert.Equal("{}", (string?)calls[0]!["function"]!["arguments"]);
+        }
+
         [Fact]
         public void ExtractedToolCalls_RoundTripThroughParseToolCalls()
         {

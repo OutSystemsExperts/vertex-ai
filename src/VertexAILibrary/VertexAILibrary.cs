@@ -880,17 +880,26 @@ namespace VertexAILibrary
             var calls = new JsonArray();
             foreach (var block in content.EnumerateArray())
             {
-                if (!block.TryGetProperty("type", out var type) || type.GetString() != "tool_use")
+                if (block.ValueKind != JsonValueKind.Object
+                    || !block.TryGetProperty("type", out var type)
+                    || type.ValueKind != JsonValueKind.String
+                    || type.GetString() != "tool_use")
                     continue;
+
+                var id   = ReadToolUseString(block, "id");
+                var name = ReadToolUseString(block, "name");
+                if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(name))
+                    throw new InvalidOperationException(
+                        "Vertex AI (anthropic) returned a tool_use block without id/name.");
 
                 var input = block.TryGetProperty("input", out var i) ? i.GetRawText() : "{}";
                 calls.Add(new JsonObject
                 {
-                    ["id"]       = block.GetProperty("id").GetString(),
+                    ["id"]       = id,
                     ["type"]     = "function",
                     ["function"] = new JsonObject
                     {
-                        ["name"]      = block.GetProperty("name").GetString(),
+                        ["name"]      = name,
                         ["arguments"] = input
                     }
                 });
@@ -898,6 +907,11 @@ namespace VertexAILibrary
 
             return calls.Count == 0 ? string.Empty : calls.ToJsonString();
         }
+
+        private static string? ReadToolUseString(JsonElement block, string property)
+            => block.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.String
+                ? value.GetString()
+                : null;
 
         /// <summary>
         /// Pulls the first text block from an Anthropic Messages response (empty when the reply only calls tools).
