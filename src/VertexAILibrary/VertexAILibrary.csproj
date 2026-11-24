@@ -23,12 +23,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- The unit-test project lives under tests/ and must not be compiled into the library -->
-    <Compile Remove="tests/**;src/**" />
-    <InternalsVisibleTo Include="VertexAILibrary.UnitTests" />
-  </ItemGroup>
-
-  <ItemGroup>
     <!-- Embed the library icon (required for ODC Forge publishing) -->
     <EmbeddedResource Include="Resources\icon.png" />
   </ItemGroup>
