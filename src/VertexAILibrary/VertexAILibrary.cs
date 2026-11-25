@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
@@ -9,6 +10,8 @@ using Google.Apis.Auth.OAuth2;
 using Google.Cloud.AIPlatform.V1;
 using Google.Protobuf;
 using Grpc.Auth;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace VertexAILibrary;
 /// <summary>
@@ -52,7 +55,14 @@ public class VertexAILibrary : IVertexAI {
 
     private static readonly string[] _supportedPublishers = { GooglePublisher, AnthropicPublisher };
 
-    private static readonly HttpClient _httpClient = new() { Timeout = TimeSpan.FromSeconds(90) };
+    private static readonly HttpClient _httpClient = new() { Timeout = Timeout.InfiniteTimeSpan };
+
+    // ODC passes its ILogger to the constructor; static so the static request helpers can log.
+    private static ILogger _logger = NullLogger.Instance;
+
+    public VertexAILibrary(ILogger logger) {
+        _logger = logger ?? NullLogger.Instance;
+    }
 
     private static readonly JsonSerializerOptions _relaxedJsonOptions =
         new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
@@ -486,60 +496,93 @@ public class VertexAILibrary : IVertexAI {
 
     /// <summary>
     /// Sends an Anthropic Messages request body to Vertex AI rawPredict and returns the response body.
+    /// A 429 is retried only while the waits stay short (MaxTotalRetryWait); otherwise it is thrown
+    /// immediately so the caller gets an error instead of a hang. Every attempt is bounded by the
+    /// overall budget, which sits under ODC's 95s action limit.
     /// </summary>
     private static string PostAnthropic(
         string projectId, GCPServiceAccount account, string region, string modelId, string requestBody) {
         var url = $"https://{BuildEndpoint(region)}/v1/" +
                   $"{BuildModelPath(projectId, region, AnthropicPublisher, modelId)}:rawPredict";
 
+        var total = Stopwatch.StartNew();
         var token = BuildCredential(account).UnderlyingCredential
             .GetAccessTokenForRequestAsync().GetAwaiter().GetResult();
-
-        // ODC aborts actions at 95s, so retries must fit in a smaller overall budget.
-        var deadline = DateTime.UtcNow + RetryBudget;
+        var totalWait = TimeSpan.Zero;
 
         for (var attempt = 0; ; attempt++) {
+            var remaining = OverallBudget - total.Elapsed;
+
+            if (remaining <= TimeSpan.Zero) {
+                throw new TimeoutException(
+                    $"Vertex AI (anthropic) did not answer within {OverallBudget.TotalSeconds:0}s.");
+            }
+
             using var request = new HttpRequestMessage(HttpMethod.Post, url) {
                 Content = new StringContent(requestBody, Encoding.UTF8, "application/json")
             };
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-            using var response = _httpClient.SendAsync(request).GetAwaiter().GetResult();
-            var body = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+            using var cts = new CancellationTokenSource(remaining);
+            var attemptTimer = Stopwatch.StartNew();
+            HttpStatusCode status;
+            string body;
+            TimeSpan? retryAfter;
 
-            if (response.IsSuccessStatusCode) {
+            try {
+                using var response = _httpClient.SendAsync(request, cts.Token).GetAwaiter().GetResult();
+                body = response.Content.ReadAsStringAsync(cts.Token).GetAwaiter().GetResult();
+                status = response.StatusCode;
+                retryAfter = response.Headers.RetryAfter?.Delta;
+            } catch (OperationCanceledException) when (cts.IsCancellationRequested) {
+                _logger.LogError(
+                    "Vertex AI (anthropic) model {ModelId} attempt {Attempt} timed out after {ElapsedMs}ms (total {TotalMs}ms)",
+                    modelId, attempt + 1, attemptTimer.ElapsedMilliseconds, total.ElapsedMilliseconds);
+                throw new TimeoutException(
+                    $"Vertex AI (anthropic) did not answer within {OverallBudget.TotalSeconds:0}s.");
+            }
+
+            _logger.LogInformation(
+                "Vertex AI (anthropic) model {ModelId} attempt {Attempt} returned {StatusCode} in {ElapsedMs}ms (total {TotalMs}ms, request {RequestBytes} bytes)",
+                modelId, attempt + 1, (int)status, attemptTimer.ElapsedMilliseconds,
+                total.ElapsedMilliseconds, requestBody.Length);
+
+            if (status is >= HttpStatusCode.OK and < HttpStatusCode.MultipleChoices) {
                 return body;
             }
 
-            if (response.StatusCode == HttpStatusCode.TooManyRequests && attempt < MaxRateLimitRetries) {
-                var delay = GetRetryDelay(response, attempt);
+            if (status == HttpStatusCode.TooManyRequests && attempt < MaxRateLimitRetries) {
+                var delay = retryAfter ?? DefaultRetryDelay(attempt);
+                var willRetry = totalWait + delay <= MaxTotalRetryWait
+                                && total.Elapsed + delay < OverallBudget;
 
-                if (DateTime.UtcNow + delay < deadline) {
+                _logger.LogWarning(
+                    "Vertex AI (anthropic) rate limited (429); Retry-After {RetryAfterMs}ms, planned delay {DelayMs}ms, retrying: {WillRetry}",
+                    retryAfter?.TotalMilliseconds, delay.TotalMilliseconds, willRetry);
+
+                if (willRetry) {
+                    totalWait += delay;
                     Thread.Sleep(delay);
                     continue;
                 }
             }
 
             throw new InvalidOperationException(
-                $"Vertex AI (anthropic) returned {(int)response.StatusCode}: {body}");
+                $"Vertex AI (anthropic) returned {(int)status}: {body}");
         }
     }
 
     private const int MaxRateLimitRetries = 3;
-    private static readonly TimeSpan RetryBudget = TimeSpan.FromSeconds(60);
+    // ODC aborts actions at 95s; stay under it.
+    private static readonly TimeSpan OverallBudget = TimeSpan.FromSeconds(85);
+    // Callers (agents, proxies) often give up long before ODC does, so waiting on a 429 must stay short.
+    private static readonly TimeSpan MaxTotalRetryWait = TimeSpan.FromSeconds(10);
 
     /// <summary>
-    /// Honors Retry-After when present; otherwise exponential backoff (4s, 8s, 16s) plus jitter.
+    /// Exponential backoff (2s, 4s, 8s) plus jitter, used when the 429 carries no Retry-After.
     /// </summary>
-    private static TimeSpan GetRetryDelay(HttpResponseMessage response, int attempt) {
-        var retryAfter = response.Headers.RetryAfter;
-
-        if (retryAfter?.Delta is { } delta) {
-            return delta;
-        }
-
-        return TimeSpan.FromSeconds(4 * Math.Pow(2, attempt) + Random.Shared.NextDouble());
-    }
+    private static TimeSpan DefaultRetryDelay(int attempt)
+        => TimeSpan.FromSeconds(2 * Math.Pow(2, attempt) + Random.Shared.NextDouble());
 
     /// <summary>
     /// Reads the token counts from a Gemini response; missing usage metadata counts as 0.
@@ -1127,6 +1170,17 @@ public class VertexAILibrary : IVertexAI {
         "^[a-z][a-z0-9-]{4,28}[a-z0-9]$", RegexOptions.CultureInvariant);
     private static readonly Regex _modelIdPattern = new(
         "^[A-Za-z0-9][A-Za-z0-9._@-]{0,127}$", RegexOptions.CultureInvariant);
+
+    /// <inheritdoc />
+    public string StringifyJsonField(string Key, string Json) => JsonFieldStringifier.Stringify(Key, Json);
+
+    /// <inheritdoc />
+    public string NormalizeBody(string RequestText, out bool IsValid, out string ErrorMessage) {
+        var result = RequestBodyNormalizer.Normalize(RequestText);
+        IsValid = result.IsValid;
+        ErrorMessage = result.ErrorMessage;
+        return result.NormalizedText;
+    }
 
     private static void ValidateProjectId(string projectId) {
         if (projectId is null || !_projectIdPattern.IsMatch(projectId)) {

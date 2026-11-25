@@ -20,6 +20,9 @@
 
     <!-- gRPC auth channel credentials -->
     <PackageReference Include="Grpc.Auth" Version="2.66.0" />
+
+    <!-- ILogger, injected by ODC into the library constructor -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 using Sut = VertexAILibrary.VertexAILibrary;
 
@@ -27,9 +28,9 @@ public class GenerateWithFilesTests {
 
     private static FileAction ActionFor(string name)
         => name == "WithFiles"
-            ? (region, publisher, prompt, files) => new Sut().GenerateContentWithFiles(
+            ? (region, publisher, prompt, files) => new Sut(NullLogger.Instance).GenerateContentWithFiles(
                 "test-project", DummyAccount, region, publisher, "m", prompt, files, 0, -1m, out _, out _)
-            : (region, publisher, prompt, files) => new Sut().GenerateContentWithSystemPromptAndFiles(
+            : (region, publisher, prompt, files) => new Sut(NullLogger.Instance).GenerateContentWithSystemPromptAndFiles(
                 "test-project", DummyAccount, region, publisher, "m", "sys", prompt, files, 0, out _, out _);
 
     [Theory]

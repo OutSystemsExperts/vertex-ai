@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 using static VertexAILibrary.UnitTests.TestHelpers;
 using Sut = VertexAILibrary.VertexAILibrary;
@@ -252,7 +253,7 @@ public class ToolCallingTests {
     [InlineData("[]", "auto")]
     [InlineData("", "")]
     public void Chat_Google_WithNormalizedDefaults_IsNotRejectedAsToolCalling(string tools, string choice) {
-        var lib = new Sut();
+        var lib = new Sut(NullLogger.Instance);
 
         // Passes the tool guard; fails later on the invalid credentials, not with NotSupportedException.
         var ex = Record.Exception(() => lib.Chat("test-project", DummyAccount, "us-central1", "google", "m",
@@ -263,7 +264,7 @@ public class ToolCallingTests {
 
     [Fact]
     public void Chat_Google_WithTools_IsRejected() {
-        var lib = new Sut();
+        var lib = new Sut(NullLogger.Instance);
 
         var ex = Assert.Throws<NotSupportedException>(() => lib.Chat("test-project", DummyAccount, "us-central1", "google", "m",
             new List<ChatMessage> { new() { Role = "user", Content = "hi" } }, 0, -1m,
@@ -309,7 +310,7 @@ public class ToolCallingTests {
 
     [Fact]
     public void Chat_Google_WithToolChoice_IsRejected() {
-        var lib = new Sut();
+        var lib = new Sut(NullLogger.Instance);
 
         var ex = Assert.Throws<NotSupportedException>(() => lib.Chat("test-project", DummyAccount, "us-central1", "google", "m",
             new List<ChatMessage>(Hi), 0, -1m,

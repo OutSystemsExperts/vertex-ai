@@ -39,6 +39,8 @@ public class InterfaceContractTests {
         },
         ["GetSupportedRegions"] = Array.Empty<string>(),
         ["GetSupportedPublishers"] = Array.Empty<string>(),
+        ["StringifyJsonField"] = new[] { "Key:String", "Json:String" },
+        ["NormalizeBody"] = new[] { "RequestText:String", "IsValid:out Boolean", "ErrorMessage:out String" },
         ["GenerateContentWithFiles"] = new[]
         {
             "ProjectId:String", "ServiceAccount:GCPServiceAccount", "Region:String", "Publisher:String",

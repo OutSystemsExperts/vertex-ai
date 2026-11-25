@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 using static VertexAILibrary.UnitTests.TestHelpers;
 using Sut = VertexAILibrary.VertexAILibrary;
@@ -17,7 +18,7 @@ public class ChatTests {
     private static readonly string[] ToolResults = { "sunny", "10:00" };
 
     private static void CallChat(string region, string publisher, List<ChatMessage>? messages)
-        => new Sut().Chat("test-project", DummyAccount, region, publisher, "m", messages!, 0, -1m,
+        => new Sut(NullLogger.Instance).Chat("test-project", DummyAccount, region, publisher, "m", messages!, 0, -1m,
             out _, out _, out _);
 
     private static JsonNode Body(IEnumerable<ChatMessage> messages) {
@@ -78,7 +79,7 @@ public class ChatTests {
     [InlineData("..")]
     [InlineData("")]
     public void InvalidModelId_Throws(string modelId) {
-        var ex = Assert.Throws<ArgumentException>(() => new Sut().Chat("test-project", DummyAccount,
+        var ex = Assert.Throws<ArgumentException>(() => new Sut(NullLogger.Instance).Chat("test-project", DummyAccount,
             ValidRegion, "anthropic", modelId, new List<ChatMessage> { Msg("user") }, 0, -1m,
             out _, out _, out _));
 
@@ -90,7 +91,7 @@ public class ChatTests {
     [InlineData("p")]
     [InlineData("Proj?x=1")]
     public void InvalidProjectId_Throws(string projectId) {
-        var ex = Assert.Throws<ArgumentException>(() => new Sut().Chat(projectId, DummyAccount,
+        var ex = Assert.Throws<ArgumentException>(() => new Sut(NullLogger.Instance).Chat(projectId, DummyAccount,
             ValidRegion, "anthropic", "claude-sonnet-4@20250514", new List<ChatMessage> { Msg("user") }, 0, -1m,
             out _, out _, out _));
 

@@ -315,4 +315,39 @@ public interface IVertexAI {
         ReturnName = "Publishers"
     )]
     List<string> GetSupportedPublishers();
+
+    // ─────────────────────────────────────────────────────────────
+    // Utility: JSON helpers
+    // ─────────────────────────────────────────────────────────────
+
+    [OSAction(
+        Description = "Replaces the top-level JSON array/object value of the given key with its JSON string representation. " +
+                      "Strings, other scalars and absent keys are left unchanged.",
+        ReturnName = "Result"
+    )]
+    string StringifyJsonField(
+        [OSParameter(Description = "Top-level property name whose array/object value is converted to a JSON string.")]
+        string Key,
+
+        [OSParameter(Description = "The JSON object text to process.")]
+        string Json
+    );
+
+    [OSAction(
+        Description = "Normalizes an OpenAI-style chat completions request body: top-level 'tools' and 'tool_choice' " +
+                      "arrays/objects become JSON strings, and when messages[].content are plain strings each one is wrapped " +
+                      "as a single text content part. Bodies whose content is already a list of parts are returned unchanged " +
+                      "(apart from tools/tool_choice). Invalid bodies return IsValid = false and an empty result.",
+        ReturnName = "NormalizedText"
+    )]
+    string NormalizeBody(
+        [OSParameter(Description = "The raw chat completions request body (JSON object text).")]
+        string RequestText,
+
+        [OSParameter(Description = "True when the body was valid and normalized.")]
+        out bool IsValid,
+
+        [OSParameter(Description = "Why the body was rejected. Empty when IsValid is true.")]
+        out string ErrorMessage
+    );
 }
