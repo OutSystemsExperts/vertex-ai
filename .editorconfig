@@ -1,0 +1,465 @@
+###############################
+# Core EditorConfig Options   #
+###############################
+
+
+# Remove the line below if you want to inherit .editorconfig settings from higher directories
+root = true
+
+# All files
+[*]
+indent_style = space
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# XML project and configuration files (keep the default indent size of 2)
+[*.{csproj,props,targets}]
+indent_size = 2
+
+# Code files
+[*.{cs,xml}]
+indent_size = 4
+charset = utf-8
+
+
+###############################
+# .NET Coding Conventions     #
+###############################
+
+# Organize usings
+dotnet_separate_import_directive_groups = false
+dotnet_sort_system_directives_first = true
+file_header_template = unset
+
+# this. and Me. preferences IDE0003/IDE0009 https://docs.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0003-ide0009
+dotnet_style_qualification_for_event = false:warning
+dotnet_style_qualification_for_field = false:warning
+dotnet_style_qualification_for_method = false:warning
+dotnet_style_qualification_for_property = false:warning
+
+# Language keywords vs BCL types preferences
+dotnet_style_predefined_type_for_locals_parameters_members = true:silent
+dotnet_style_predefined_type_for_member_access = true:silent
+
+# Parentheses preferences
+dotnet_style_parentheses_in_arithmetic_binary_operators = always_for_clarity:silent
+dotnet_style_parentheses_in_other_binary_operators = always_for_clarity:silent
+dotnet_style_parentheses_in_other_operators = never_if_unnecessary:silent
+dotnet_style_parentheses_in_relational_binary_operators = always_for_clarity:silent
+
+# Modifier preferences
+dotnet_style_require_accessibility_modifiers = for_non_interface_members:silent
+
+# Expression-level preferences
+dotnet_style_coalesce_expression = true:suggestion
+dotnet_style_collection_initializer = true:warning #IDE0028 https://docs.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0028
+dotnet_style_explicit_tuple_names = true:suggestion
+dotnet_style_null_propagation = true:suggestion
+dotnet_style_object_initializer = true:warning #IDE0017 https://docs.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0017
+dotnet_style_operator_placement_when_wrapping = beginning_of_line
+dotnet_style_prefer_auto_properties = true:silent
+dotnet_style_prefer_compound_assignment = true:suggestion
+dotnet_style_prefer_conditional_expression_over_assignment = true:silent
+dotnet_style_prefer_conditional_expression_over_return = true:silent
+dotnet_style_prefer_inferred_anonymous_type_member_names = true:suggestion
+dotnet_style_prefer_inferred_tuple_names = true:suggestion
+dotnet_style_prefer_is_null_check_over_reference_equality_method = true:suggestion
+dotnet_style_prefer_simplified_boolean_expressions = true:suggestion
+dotnet_style_prefer_simplified_interpolation = true:warning #IDE0071 https://docs.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0071
+
+# Field preferences
+dotnet_style_readonly_field = true:warning #IDE0044 https://docs.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0044
+
+# Parameter preferences
+dotnet_code_quality_unused_parameters = all:suggestion
+
+# Suppression preferences
+dotnet_remove_unnecessary_suppression_exclusions = none
+
+
+###############################
+# C# Coding Conventions       #
+###############################
+
+
+# var preferences
+csharp_style_var_elsewhere = false:silent
+csharp_style_var_for_built_in_types = false:silent
+csharp_style_var_when_type_is_apparent = false:silent
+
+# Expression-bodied members
+csharp_style_expression_bodied_accessors = true:silent
+csharp_style_expression_bodied_constructors = false:silent
+csharp_style_expression_bodied_indexers = true:silent
+csharp_style_expression_bodied_lambdas = true:silent
+csharp_style_expression_bodied_local_functions = false:silent
+csharp_style_expression_bodied_methods = false:silent
+csharp_style_expression_bodied_operators = false:silent
+csharp_style_expression_bodied_properties = true:silent
+
+# Pattern matching preferences
+csharp_style_pattern_matching_over_as_with_null_check = true:warning #IDE0019 https://docs.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0019
+csharp_style_pattern_matching_over_is_with_cast_check = true:warning #IDE0020/IDE0038 https://docs.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0020-ide0038 
+csharp_style_prefer_not_pattern = true:warning #IDE0083 https://docs.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0083
+csharp_style_prefer_pattern_matching = true:suggestion #IDE0078 https://docs.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0078
+csharp_style_prefer_switch_expression = true:warning #IDE0066 https://docs.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0066
+
+# Null-checking preferences
+csharp_style_conditional_delegate_call = true:suggestion
+
+# Modifier preferences
+csharp_prefer_static_local_function = true:suggestion
+csharp_preferred_modifier_order = public,private,protected,internal,static,extern,new,virtual,abstract,sealed,override,readonly,unsafe,volatile,async:suggestion
+
+# Code-block preferences
+csharp_prefer_braces = true:warning #IDE0011 https://docs.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0011
+csharp_prefer_simple_using_statement = true:suggestion
+csharp_style_namespace_declarations = file_scoped:warning #IDE0161: https://docs.microsoft.com/en-gb/dotnet/fundamentals/code-analysis/style-rules/ide0161
+
+# Expression-level preferences
+csharp_prefer_simple_default_expression = true:suggestion
+csharp_style_deconstructed_variable_declaration = true:suggestion
+csharp_style_inlined_variable_declaration = true:warning #IDE0018 https://docs.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/ide0018
+csharp_style_pattern_local_over_anonymous_function = true:warning #IDE0039 https://docs.microsoft.com/en-gb/dotnet/fundamentals/code-analysis/style-rules/ide0039
+csharp_style_prefer_index_operator = true:suggestion
+csharp_style_prefer_range_operator = true:suggestion
+csharp_style_throw_expression = true:suggestion
+csharp_style_unused_value_assignment_preference = discard_variable:suggestion
+csharp_style_unused_value_expression_statement_preference = discard_variable:silent
+
+# 'using' directive preferences
+csharp_using_directive_placement = outside_namespace:silent
+
+
+###############################
+# C# Formatting Rules         #
+###############################
+
+
+# New line preferences
+csharp_new_line_before_catch = false
+csharp_new_line_before_else = false
+csharp_new_line_before_finally = false
+csharp_new_line_before_members_in_anonymous_types = true
+csharp_new_line_before_members_in_object_initializers = true
+csharp_new_line_before_open_brace = none
+csharp_new_line_between_query_expression_clauses = true
+
+# Indentation preferences
+csharp_indent_block_contents = true
+csharp_indent_braces = false
+csharp_indent_case_contents = true
+csharp_indent_case_contents_when_block = true
+csharp_indent_labels = no_change
+csharp_indent_switch_labels = true
+
+# Space preferences
+csharp_space_after_cast = false
+csharp_space_after_colon_in_inheritance_clause = true
+csharp_space_after_comma = true
+csharp_space_after_dot = false
+csharp_space_after_keywords_in_control_flow_statements = true
+csharp_space_after_semicolon_in_for_statement = true
+csharp_space_around_binary_operators = before_and_after
+csharp_space_around_declaration_statements = false
+csharp_space_before_colon_in_inheritance_clause = true
+csharp_space_before_comma = false
+csharp_space_before_dot = false
+csharp_space_before_open_square_brackets = false
+csharp_space_before_semicolon_in_for_statement = false
+csharp_space_between_empty_square_brackets = false
+csharp_space_between_method_call_empty_parameter_list_parentheses = false
+csharp_space_between_method_call_name_and_opening_parenthesis = false
+csharp_space_between_method_call_parameter_list_parentheses = false
+csharp_space_between_method_declaration_empty_parameter_list_parentheses = false
+csharp_space_between_method_declaration_name_and_open_parenthesis = false
+csharp_space_between_method_declaration_parameter_list_parentheses = false
+csharp_space_between_parentheses = false
+csharp_space_between_square_brackets = false
+
+# Wrapping preferences
+csharp_preserve_single_line_blocks = true
+csharp_preserve_single_line_statements = true
+
+
+###############################
+# Naming Conventions          #
+###############################
+
+
+# Naming rules
+dotnet_naming_rule.interface_should_be_begins_with_i.severity = suggestion
+dotnet_naming_rule.interface_should_be_begins_with_i.symbols = interface
+dotnet_naming_rule.interface_should_be_begins_with_i.style = begins_with_i
+
+dotnet_naming_rule.types_should_be_pascal_case.severity = suggestion
+dotnet_naming_rule.types_should_be_pascal_case.symbols = types
+dotnet_naming_rule.types_should_be_pascal_case.style = pascal_case
+
+dotnet_naming_rule.non_field_members_should_be_pascal_case.severity = suggestion
+dotnet_naming_rule.non_field_members_should_be_pascal_case.symbols = non_field_members
+dotnet_naming_rule.non_field_members_should_be_pascal_case.style = pascal_case
+
+# Symbol specifications
+dotnet_naming_symbols.interface.applicable_kinds = interface
+dotnet_naming_symbols.interface.applicable_accessibilities = public, internal, private, protected, protected_internal, private_protected
+dotnet_naming_symbols.interface.required_modifiers =
+
+dotnet_naming_symbols.types.applicable_kinds = class, struct, interface, enum
+dotnet_naming_symbols.types.applicable_accessibilities = public, internal, private, protected, protected_internal, private_protected
+dotnet_naming_symbols.types.required_modifiers =
+
+dotnet_naming_symbols.non_field_members.applicable_kinds = property, event, method
+dotnet_naming_symbols.non_field_members.applicable_accessibilities = public, internal, private, protected, protected_internal, private_protected
+dotnet_naming_symbols.non_field_members.required_modifiers =
+
+# Naming styles
+dotnet_naming_style.pascal_case.required_prefix =
+dotnet_naming_style.pascal_case.required_suffix =
+dotnet_naming_style.pascal_case.word_separator =
+dotnet_naming_style.pascal_case.capitalization = pascal_case
+
+dotnet_naming_style.begins_with_i.required_prefix = I
+dotnet_naming_style.begins_with_i.required_suffix =
+dotnet_naming_style.begins_with_i.word_separator =
+dotnet_naming_style.begins_with_i.capitalization = pascal_case
+
+
+###############################
+# Diagnostic (Code Quality)   #
+###############################
+
+
+# Diagnostic (Design Rules) https://docs.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/design-warnings
+dotnet_diagnostic.CA1012.severity = error # Abstract types should not have public constructors.
+dotnet_diagnostic.CA1041.severity = error # Provide ObsoleteAttribute message.
+dotnet_diagnostic.CA1052.severity = none # Static holder types should be Static or NotInheritable.
+dotnet_diagnostic.CA1053.severity = error # Static holder types should not have constructors.
+dotnet_diagnostic.CA1061.severity = error # Do not hide base class methods.
+dotnet_diagnostic.CA1063.severity = error # Implement IDisposable correctly.
+dotnet_diagnostic.CA1064.severity = error # Exceptions should be public.
+dotnet_diagnostic.CA1068.severity = error # CancellationToken parameters must come last.
+dotnet_diagnostic.CA1069.severity = error # Enums should not have duplicate values.
+dotnet_diagnostic.CA1070.severity = error # Do not declare event fields as virtual.
+
+# Diagnostic (Maintainability Rules) https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/maintainability-warnings
+dotnet_diagnostic.CA1501.severity = error # Avoid excessive inheritance.
+dotnet_diagnostic.CA1502.severity = error # Avoid excessive complexity.
+dotnet_diagnostic.CA1505.severity = error # Avoid unmaintainable code.
+dotnet_diagnostic.CA1506.severity = none # Avoid excessive class coupling.
+dotnet_diagnostic.CA1507.severity = error # Use nameof in place of string.
+dotnet_diagnostic.CA1508.severity = none # Avoid dead conditional code.
+dotnet_diagnostic.CA1509.severity = error # Invalid entry in code metrics configuration file.
+dotnet_diagnostic.CA1510.severity = error # Use ArgumentNullException throw helper.
+dotnet_diagnostic.CA1511.severity = error # Use ArgumentException throw helper.
+dotnet_diagnostic.CA1512.severity = error # Use ArgumentOutOfRangeException throw helper.
+dotnet_diagnostic.CA1513.severity = error # Use ObjectDisposedException throw helper.
+dotnet_diagnostic.CA1514.severity = error # Avoid redundant length argument.
+dotnet_diagnostic.CA1515.severity = none # Consider making public types internal.
+dotnet_diagnostic.CA1516.severity = error # Use cross-platform intrinsics.
+
+# Diagnostic (Naming Rules) https://docs.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/naming-warnings
+dotnet_diagnostic.CA1700.severity = error # Do not name enum values 'Reserved'.
+dotnet_diagnostic.CA1707.severity = none # Identifiers should not contain underscores.
+dotnet_diagnostic.CA1708.severity = none # Identifiers should differ by more than case.
+dotnet_diagnostic.CA1710.severity = none # Identifiers should have correct suffix.
+dotnet_diagnostic.CA1711.severity = none # Identifiers should not have incorrect suffix.
+dotnet_diagnostic.CA1712.severity = error # Do not prefix enum values with type name.
+dotnet_diagnostic.CA1713.severity = error # Events should not have before or after prefix.
+dotnet_diagnostic.CA1714.severity = error # Flags enums should have plural names.
+dotnet_diagnostic.CA1715.severity = none # Identifiers should have correct prefix.
+dotnet_diagnostic.CA1716.severity = none # Identifiers should not match keywords.
+dotnet_diagnostic.CA1717.severity = error # Only FlagsAttribute enums should have plural names.
+dotnet_diagnostic.CA1720.severity = none # Identifiers should not contain type names.
+dotnet_diagnostic.CA1721.severity = none # Property names should not match get methods.
+dotnet_diagnostic.CA1724.severity = none # Type names should not match namespaces.
+dotnet_diagnostic.CA1725.severity = error # Parameter names should match base declaration.
+dotnet_diagnostic.CA1727.severity = suggestion # Use PascalCase for named placeholders.
+
+# Diagnostic (Performance Rules) https://docs.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/performance-warnings
+dotnet_diagnostic.CA1802.severity = error # Use Literals Where Appropriate.
+dotnet_diagnostic.CA1805.severity = error # Do not initialize unnecessarily.
+dotnet_diagnostic.CA1806.severity = error # Do not ignore method results.
+dotnet_diagnostic.CA1810.severity = suggestion # Initialize reference type static fields inline.
+dotnet_diagnostic.CA1812.severity = suggestion # Avoid uninstantiated internal classes.
+dotnet_diagnostic.CA1813.severity = suggestion # Avoid unsealed attributes.
+dotnet_diagnostic.CA1814.severity = error # Prefer jagged arrays over multidimensional.
+dotnet_diagnostic.CA1815.severity = suggestion # Override equals and operator equals on value types
+dotnet_diagnostic.CA1819.severity = suggestion # Properties should not return arrays.
+dotnet_diagnostic.CA1820.severity = suggestion # Test for empty strings using string length.
+dotnet_diagnostic.CA1821.severity = error # Remove empty finalizers.
+dotnet_diagnostic.CA1822.severity = suggestion # Mark members as static.
+dotnet_diagnostic.CA1823.severity = error # Avoid unused private fields.
+dotnet_diagnostic.CA1824.severity = error # Mark assemblies with NeutralResourcesLanguageAttribute.
+dotnet_diagnostic.CA1825.severity = error # Avoid zero-length array allocations.
+dotnet_diagnostic.CA1826.severity = error # Use property instead of Linq Enumerable method.
+dotnet_diagnostic.CA1827.severity = error # Do not use Count/LongCount when Any can be used.
+dotnet_diagnostic.CA1828.severity = error # Do not use CountAsync/LongCountAsync when AnyAsync can be used.
+dotnet_diagnostic.CA1829.severity = error # Use Length/Count property instead of Enumerable.Count method.
+dotnet_diagnostic.CA1830.severity = error # Prefer strongly-typed Append and Insert method overloads on StringBuilder.
+dotnet_diagnostic.CA1831.severity = error # Use AsSpan instead of Range-based indexers for string when appropriate.
+dotnet_diagnostic.CA1832.severity = error # Use AsSpan or AsMemory instead of Range-based indexers for getting ReadOnlySpan or ReadOnlyMemory portion of an array.
+dotnet_diagnostic.CA1833.severity = error # Use AsSpan or AsMemory instead of Range-based indexers for getting Span or Memory portion of an array.
+dotnet_diagnostic.CA1834.severity = error # Use StringBuilder.Append(char) for single character strings.
+dotnet_diagnostic.CA1835.severity = error # Prefer the memory-based overloads of ReadAsync/WriteAsync methods in stream-based classes.
+dotnet_diagnostic.CA1836.severity = error # Prefer IsEmpty over Count when available.
+dotnet_diagnostic.CA1837.severity = error # Use Environment.ProcessId instead of Process.GetCurrentProcess().Id.
+dotnet_diagnostic.CA1838.severity = error # Avoid StringBuilder parameters for P/Invokes.
+dotnet_diagnostic.CA1839.severity = error # se Environment.ProcessPath instead of Process.GetCurrentProcess().MainModule.FileName.
+dotnet_diagnostic.CA1840.severity = error # Use Environment.CurrentManagedThreadId instead of Thread.CurrentThread.ManagedThreadId.
+dotnet_diagnostic.CA1841.severity = error # Prefer Dictionary Contains methods.
+dotnet_diagnostic.CA1842.severity = error # Do not use 'WhenAll' with a single task.
+dotnet_diagnostic.CA1843.severity = error # Do not use 'WaitAll' with a single task.
+dotnet_diagnostic.CA1844.severity = error # Provide memory-based overrides of async methods when subclassing 'Stream'.
+dotnet_diagnostic.CA1845.severity = error # Use span-based 'string.Concat'.
+dotnet_diagnostic.CA1846.severity = error # Prefer AsSpan over Substring.
+dotnet_diagnostic.CA1847.severity = error # Use string.Contains(char) instead of string.Contains(string) with single characters.
+dotnet_diagnostic.CA1848.severity = none # Use the LoggerMessage delegates.
+dotnet_diagnostic.CA1849.severity = error # Call async methods when in an async method.
+dotnet_diagnostic.CA1850.severity = error # Prefer static HashData method over ComputeHash.
+dotnet_diagnostic.CA1853.severity = error # Unnecessary call to 'Dictionary.ContainsKey(key)'.
+dotnet_diagnostic.CA1854.severity = error # Prefer the IDictionary.TryGetValue(TKey, out TValue) method.
+dotnet_diagnostic.CA1855.severity = error # Use Span<T>.Clear() instead of Span<T>.Fill().
+dotnet_diagnostic.CA1856.severity = error # Incorrect usage of ConstantExpected attribute.
+dotnet_diagnostic.CA1857.severity = error # The parameter expects a constant for optimal performance.
+dotnet_diagnostic.CA1858.severity = error # Use StartsWith instead of IndexOf.
+dotnet_diagnostic.CA1860.severity = error # Prefer comparing 'Count' to 0 rather than using 'Any()' both for clarity and for performance.
+dotnet_diagnostic.CA1861.severity = error # Avoid constant arrays as arguments.
+dotnet_diagnostic.CA1862.severity = error # Use the 'StringComparison' method overloads to perform case-insensitive string comparisons.
+dotnet_diagnostic.CA1865.severity = error # Use 'string.Method(char)' instead of 'string.Method(string)' for string with single char.
+dotnet_diagnostic.CA1866.severity = error # Use 'string.Method(char)' instead of 'string.Method(string)' for string with single char.
+dotnet_diagnostic.CA1867.severity = error # Use 'string.Method(char)' instead of 'string.Method(string)' for string with single char.
+dotnet_diagnostic.CA1868.severity = error # Unnecessary call to 'Contains' for sets.
+dotnet_diagnostic.CA1870.severity = error # Use a cached 'SearchValues' instance.
+dotnet_diagnostic.CA1871.severity = error # Do not pass a nullable struct to 'ArgumentNullException.ThrowIfNull'.
+dotnet_diagnostic.CA1872.severity = error # Prefer 'Convert.ToHexString' and 'Convert.ToHexStringLower' over call chains based on 'BitConverter.ToString'.
+
+# Diagnostic (Reliability Rules) https://docs.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/reliability-warnings
+dotnet_diagnostic.CA2012.severity = error # Use ValueTasks correctly.
+dotnet_diagnostic.CA2016.severity = error # Forward the CancellationToken parameter to methods that take one.
+dotnet_diagnostic.CA2017.severity = error # Parameter count mismatch.
+dotnet_diagnostic.CA2018.severity = error # The count argument to Buffer.BlockCopy should specify the number of bytes to copy.
+
+# Diagnostic (Usage Rules) https://docs.microsoft.com/en-gb/dotnet/fundamentals/code-analysis/quality-rules/usage-warnings
+dotnet_diagnostic.CA2237.severity = error # Mark ISerializable types with SerializableAttribute.
+
+
+###############################
+# Diagnostic (Code Style)     #
+###############################
+
+
+# Diagnostic (Language Rules) https://docs.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/language-rules
+dotnet_diagnostic.IDE0011.severity = error # Prefer curly braces even for one line of code.
+dotnet_diagnostic.IDE0017.severity = error # Use object initializers.
+
+# Diagnostic (Formatting Rules) https://docs.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/formatting-rules
+dotnet_diagnostic.IDE0161.severity = error # Namespace declarations should be file scoped. For more information, see https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/proposals/csharp-10.0/file-scoped-namespaces.
+
+
+###############################
+# Diagnostic (Tests)          #
+###############################
+
+
+# NUnit.Analyzers https://github.com/nunit/nunit.analyzers/tree/master/documentation
+dotnet_diagnostic.NUnit1001.severity = error # The individual arguments provided by a TestCaseAttribute must match the type of the corresponding parameter of the method.
+dotnet_diagnostic.NUnit1002.severity = error # The TestCaseSource should use nameof operator to specify target.
+dotnet_diagnostic.NUnit1003.severity = error # The TestCaseAttribute provided too few arguments.
+dotnet_diagnostic.NUnit1004.severity = error # The TestCaseAttribute provided too many arguments.
+dotnet_diagnostic.NUnit1005.severity = error # The type of the value specified via ExpectedResult must match the return type of the method.
+dotnet_diagnostic.NUnit1006.severity = error # ExpectedResult must not be specified when the method returns void.
+dotnet_diagnostic.NUnit1007.severity = error # The method has non-void return type, but no result is expected in ExpectedResult.
+dotnet_diagnostic.NUnit1008.severity = error # Specifying ParallelScope.Self on assembly level has no effect.
+dotnet_diagnostic.NUnit1009.severity = error # One may not specify ParallelScope.Children on a non-parameterized test method.
+dotnet_diagnostic.NUnit1010.severity = error # One may not specify ParallelScope.Fixtures on a test method.
+dotnet_diagnostic.NUnit1011.severity = error # The TestCaseSource argument does not specify an existing member.
+dotnet_diagnostic.NUnit1012.severity = error # The async test method must have a non-void return type.
+dotnet_diagnostic.NUnit1013.severity = error # The async test method must have a non-generic Task return type when no result is expected.
+dotnet_diagnostic.NUnit1014.severity = error # The async test method must have a Task<T> return type when a result is expected.
+dotnet_diagnostic.NUnit1015.severity = error # The source type does not implement I(Async)Enumerable.
+dotnet_diagnostic.NUnit1016.severity = error # The source type does not have a default constructor.
+dotnet_diagnostic.NUnit1017.severity = error # The specified source is not static.
+dotnet_diagnostic.NUnit1018.severity = error # The number of parameters provided by the TestCaseSource does not match the number of parameters in the target method.
+dotnet_diagnostic.NUnit1019.severity = error # The source specified by the TestCaseSource does not return an I(Async)Enumerable or a type that implements I(Async)Enumerable.
+dotnet_diagnostic.NUnit1020.severity = error # The TestCaseSource provides parameters to a source - field or property - that expects no parameters.
+dotnet_diagnostic.NUnit1021.severity = error # The ValueSource should use nameof operator to specify target.
+dotnet_diagnostic.NUnit1022.severity = error # The specified source is not static.
+dotnet_diagnostic.NUnit1023.severity = error # The target method expects parameters which cannot be supplied by the ValueSource.
+dotnet_diagnostic.NUnit1024.severity = error # The source specified by the ValueSource does not return an I(Async)Enumerable or a type that implements I(Async)Enumerable.
+dotnet_diagnostic.NUnit1025.severity = error # The ValueSource argument does not specify an existing member.
+dotnet_diagnostic.NUnit1026.severity = error # The test or setup/teardown method is not public.
+dotnet_diagnostic.NUnit1027.severity = error # The test method has parameters, but no arguments are supplied by attributes.
+dotnet_diagnostic.NUnit1028.severity = error # The non-test method is public.
+dotnet_diagnostic.NUnit1029.severity = error # The number of parameters provided by the TestCaseSource does not match the number of parameters in the Test method.
+dotnet_diagnostic.NUnit1030.severity = error # The type of parameter provided by the TestCaseSource does not match the type of the parameter in the Test method.
+dotnet_diagnostic.NUnit1031.severity = error # The individual arguments provided by a ValuesAttribute must match the type of the corresponding parameter of the method.
+dotnet_diagnostic.NUnit1032.severity = error # An IDisposable field/property should be Disposed in a TearDown method.
+dotnet_diagnostic.NUnit1033.severity = error # The Write methods on TestContext will be marked as Obsolete and eventually removed.
+dotnet_diagnostic.NUnit1034.severity = error # Base TestFixtures should be abstract.
+dotnet_diagnostic.NUnit1035.severity = error # The 'step' parameter to Range cannot be zero.
+dotnet_diagnostic.NUnit1036.severity = error # The value for 'from' must be less than 'to' when 'step' is positive.
+dotnet_diagnostic.NUnit1037.severity = error # The value for 'from' must be greater than 'to' when 'step' is negative.
+dotnet_diagnostic.NUnit1038.severity = error # The type of the attribute values doesn't match the parameter type.
+dotnet_diagnostic.NUnit2001.severity = error # Consider using Assert.That(expr, Is.False) instead of ClassicAssert.False(expr).
+dotnet_diagnostic.NUnit2002.severity = error # Consider using Assert.That(expr, Is.False) instead of ClassicAssert.IsFalse(expr).
+dotnet_diagnostic.NUnit2003.severity = none # Consider using Assert.That(expr, Is.True) instead of ClassicAssert.IsTrue(expr).
+dotnet_diagnostic.NUnit2004.severity = none # Consider using Assert.That(expr, Is.True) instead of ClassicAssert.True(expr).
+dotnet_diagnostic.NUnit2005.severity = none # Consider using Assert.That(actual, Is.EqualTo(expected)) instead of ClassicAssert.AreEqual(expected, actual).
+dotnet_diagnostic.NUnit2006.severity = none # Consider using Assert.That(actual, Is.Not.EqualTo(expected)) instead of ClassicAssert.AreNotEqual(expected, actual).
+dotnet_diagnostic.NUnit2007.severity = error # The actual value should not be a constant.
+dotnet_diagnostic.NUnit2008.severity = error # Incorrect IgnoreCase usage.
+dotnet_diagnostic.NUnit2009.severity = error # The same value has been provided as both the actual and the expected argument.
+dotnet_diagnostic.NUnit2010.severity = error # Use EqualConstraint for better assertion messages in case of failure.
+dotnet_diagnostic.NUnit2011.severity = error # Use ContainsConstraint for better assertion messages in case of failure.
+dotnet_diagnostic.NUnit2012.severity = error # Use StartsWithConstraint for better assertion messages in case of failure.
+dotnet_diagnostic.NUnit2013.severity = error # Use EndsWithConstraint for better assertion messages in case of failure.
+dotnet_diagnostic.NUnit2014.severity = error # Use SomeItemsConstraint for better assertion messages in case of failure.
+dotnet_diagnostic.NUnit2015.severity = error # Consider using Assert.That(actual, Is.SameAs(expected)) instead of ClassicAssert.AreSame(expected, actual).
+dotnet_diagnostic.NUnit2016.severity = error # Consider using Assert.That(expr, Is.Null) instead of ClassicAssert.Null(expr).
+dotnet_diagnostic.NUnit2017.severity = none # Consider using Assert.That(expr, Is.Null) instead of ClassicAssert.IsNull(expr).
+dotnet_diagnostic.NUnit2018.severity = none # Consider using Assert.That(expr, Is.Not.Null) instead of ClassicAssert.NotNull(expr).
+dotnet_diagnostic.NUnit2019.severity = none # Consider using Assert.That(expr, Is.Not.Null) instead of ClassicAssert.IsNotNull(expr).
+dotnet_diagnostic.NUnit2020.severity = error # Incompatible types for SameAs constraint.
+dotnet_diagnostic.NUnit2021.severity = error # Incompatible types for EqualTo constraint.
+dotnet_diagnostic.NUnit2022.severity = error # Missing property required for constraint.
+dotnet_diagnostic.NUnit2023.severity = error # Invalid NullConstraint usage.
+dotnet_diagnostic.NUnit2024.severity = error # Wrong actual type used with String Constraint.
+dotnet_diagnostic.NUnit2025.severity = error # Wrong actual type used with ContainsConstraint.
+dotnet_diagnostic.NUnit2026.severity = error # Wrong actual type used with the SomeItemsConstraint with EqualConstraint.
+dotnet_diagnostic.NUnit2027.severity = error # Consider using Assert.That(actual, Is.GreaterThan(expected)) instead of ClassicAssert.Greater(actual, expected).
+dotnet_diagnostic.NUnit2028.severity = error # Consider using Assert.That(actual, Is.GreaterThanOrEqualTo(expected)) instead of ClassicAssert.GreaterOrEqual(actual, expected).
+dotnet_diagnostic.NUnit2029.severity = error # Consider using Assert.That(actual, Is.LessThan(expected)) instead of ClassicAssert.Less(actual, expected).
+dotnet_diagnostic.NUnit2030.severity = error # Consider using Assert.That(actual, Is.LessThanOrEqualTo(expected)) instead of ClassicAssert.LessOrEqual(actual, expected)
+dotnet_diagnostic.NUnit2031.severity = error # Consider using Assert.That(actual, Is.Not.SameAs(expected)) instead of ClassicAssert.AreNotSame(expected, actual).
+dotnet_diagnostic.NUnit2032.severity = error # Consider using Assert.That(expr, Is.Zero) instead of ClassicAssert.Zero(expr)
+dotnet_diagnostic.NUnit2033.severity = error # Consider using Assert.That(expr, Is.Not.Zero) instead of ClassicAssert.NotZero(expr).
+dotnet_diagnostic.NUnit2034.severity = error # Consider using Assert.That(expr, Is.NaN) instead of ClassicAssert.IsNaN(expr).
+dotnet_diagnostic.NUnit2035.severity = error # Consider using Assert.That(collection, Is.Empty) instead of ClassicAssert.IsEmpty(collection).
+dotnet_diagnostic.NUnit2036.severity = error # Consider using Assert.That(collection, Is.Not.Empty) instead of ClassicAssert.IsNotEmpty(collection).
+dotnet_diagnostic.NUnit2037.severity = error # Consider using Assert.That(collection, Does.Contain(instance)) instead of ClassicAssert.Contains(instance, collection).
+dotnet_diagnostic.NUnit2038.severity = error # Consider using Assert.That(actual, Is.InstanceOf(expected)) instead of ClassicAssert.IsInstanceOf(expected, actual).
+dotnet_diagnostic.NUnit2039.severity = error # Consider using Assert.That(actual, Is.Not.InstanceOf(expected)) instead of ClassicAssert.IsNotInstanceOf(expected, actual).
+dotnet_diagnostic.NUnit2040.severity = error # Non-reference types for SameAs constraint.
+dotnet_diagnostic.NUnit2041.severity = error # Incompatible types for comparison constraint.
+dotnet_diagnostic.NUnit2042.severity = error # Comparison constraint on object.
+dotnet_diagnostic.NUnit2043.severity = error # Use ComparisonConstraint for better assertion messages in case of failure.
+dotnet_diagnostic.NUnit2044.severity = error # Non-delegate actual parameter.
+dotnet_diagnostic.NUnit2045.severity = error # Use Assert.Multiple.
+dotnet_diagnostic.NUnit2046.severity = error # Use CollectionConstraint for better assertion messages in case of failure.
+dotnet_diagnostic.NUnit2047.severity = error # Incompatible types for Within constraint.
+dotnet_diagnostic.NUnit2048.severity = error # Consider using Assert.That(...) instead of StringAssert(...).
+dotnet_diagnostic.NUnit2049.severity = error # Consider using Assert.That(...) instead of CollectionAssert(...).
+dotnet_diagnostic.NUnit2050.severity = error # NUnit 4 no longer supports string.Format specification.
+dotnet_diagnostic.NUnit2051.severity = error # Consider using Assert.That(expr, Is.Positive) instead of ClassicAssert.Positive(expr).
+dotnet_diagnostic.NUnit2052.severity = error # Consider using Assert.That(expr, Is.Negative) instead of ClassicAssert.Negative(expr).
+dotnet_diagnostic.NUnit2053.severity = error # Consider using Assert.That(actual, Is.AssignableFrom(expected)) instead of ClassicAssert.IsAssignableFrom(expected, actual).
+dotnet_diagnostic.NUnit2054.severity = error # Consider using Assert.That(actual, Is.Not.AssignableFrom(expected)) instead of ClassicAssert.IsNotAssignableFrom(expected, actual).
+dotnet_diagnostic.NUnit2055.severity = error # Consider using Is.InstanceOf<T> constraint instead of an 'is T' expression.
+dotnet_diagnostic.NUnit2056.severity = error # Consider using Assert.EnterMultipleScope statement instead of Assert.Multiple/Assert.MultipleAsync.
+dotnet_diagnostic.NUnit3001.severity = error # Expression was checked in an ClassicAssert.NotNull, ClassicAssert.IsNotNull or Assert.That call.
+dotnet_diagnostic.NUnit3002.severity = error # Field/Property is initialized in SetUp or OneTimeSetUp method.
+dotnet_diagnostic.NUnit3003.severity = error # Class is an NUnit TestFixture and is instantiated using reflection.
+dotnet_diagnostic.NUnit3004.severity = error # Field should be Disposed in TearDown or OneTimeTearDown method.
+dotnet_diagnostic.NUnit4001.severity = error # Simplify the Values attribute.
+dotnet_diagnostic.NUnit4002.severity = error # Use Specific constraint.

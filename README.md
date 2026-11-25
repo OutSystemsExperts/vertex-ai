@@ -73,6 +73,29 @@ Vertex AI Model Garden for your project, and are not offered in every region.
 | `ThinkingTokens` | `totalTokenCount` − `promptTokenCount` − `candidatesTokenCount` | 0 (included in `OutputTokens`) |
 | `TotalTokens` | `totalTokenCount` | sum of all of the above input/output counts |
 
+### Multi-turn chat
+
+`Chat` takes a list of `ChatMessage` (`Role` = `system`, `user`, `assistant` or `tool`, plus `Content`) and returns the next assistant reply.
+It also returns `Usage` and `FinishReason`. `FinishReason` is publisher-specific (`Stop`/`MaxTokens` for `google`, `end_turn`/`max_tokens` for `anthropic`).
+System messages are combined into the system instruction for both publishers.
+
+### Tool calling (Anthropic publisher only)
+
+`Chat` supports function/tool calling, with every tool payload passed as OpenAI-format JSON text (the library converts to and from Anthropic's format internally):
+
+| Parameter | Direction | Meaning |
+|---|---|---|
+| `ToolsJson` | in, optional | OpenAI `tools` array (`[{"type":"function","function":{"name","description","parameters"}}]`). Empty string = no tools. |
+| `ToolChoice` | in, optional | Empty or `auto` = the model decides (default). `none` = no tool calls. `required` = must call some tool. Any other value = a tool name it must call. Anything but empty/`auto` needs `ToolsJson`. |
+| `ToolCallsJson` | out | OpenAI `tool_calls` array (`[{"id","type":"function","function":{"name","arguments"}}]`) when the model wants to call tools, otherwise empty. |
+| `FinishReason` | out | `tool_use` when the model stopped to call tools. `ResponseText` may be empty in that case. |
+| `ChatMessage.ToolCallsJson` | in | On an `assistant` message: the calls that turn made (replay `ToolCallsJson` from the previous reply). |
+| `ChatMessage.ToolCallId` | in | On a `tool` message: the `id` of the call it answers; `Content` is the tool result. |
+
+Loop: call `Chat` -> if `FinishReason` is `tool_use` (`ToolCallsJson` is not empty), run the tools -> call `Chat` again with the same `ToolsJson` (Anthropic rejects tool_use/tool_result history without tool definitions), the earlier messages, the assistant message (`ToolCallsJson`) and one `tool` message per call -> repeat until `FinishReason` is no longer `tool_use`. A `max_tokens` finish never returns `ToolCallsJson`; raise `MaxOutputTokens` and retry.
+
+With the `google` publisher, tool calling is not supported yet: a `ToolsJson` with at least one tool, a `ToolChoice` other than empty/`auto`, a `tool` message, or an assistant message with `ToolCallsJson` raises an error naming the trigger. An empty `ToolsJson`, `[]` and `auto` are accepted and mean no tools.
+
 ### Sending files
 
 `GenerateContentWithFiles` and `GenerateContentWithSystemPromptAndFiles` send one or more files
@@ -149,6 +172,19 @@ The model API stays the final arbiter: a model may reject a type it does not sup
   the other inputs, before the library's own base64 / JSON encoding, so the usable file size is a bit
   lower. Larger files are not supported; the library doesn't add its own cap.
 - Claude also enforces its own limits (for example at most 100 PDF pages and 100 images per request).
+
+## Using the library as a custom AI model on ODC
+
+ODC's custom AI model connections call a **REST endpoint**, not a Server Action. The library can't be registered directly.
+Build a small ODC app that exposes `POST /custom/rest/aimodel/chat/completions` (the `aimodel` contract, `resources/swagger.json` in the `docs-odc` repo) and calls `VertexAI.Chat` internally:
+
+1. Map the request: `messages` → `Messages`, `maxTokens` → `MaxOutputTokens`, `temperature` → `Temperature`, `model` → `ModelId`. Check `model` against an allow-list kept in ODC Settings before calling the library; never pass arbitrary request values through.
+2. Read `ProjectId`, the service account, `Region` and `Publisher` from ODC Secrets / Settings, never from the request.
+3. Map the response: `Usage` → `usage` (`prompt_tokens`, `completion_tokens`, `total_tokens`, `prompt_tokens_details.cached_tokens`), `FinishReason` → `choices[].finish_reason`.
+4. Return standard HTTP error codes for bad input or upstream failures.
+5. In the ODC Portal, add the model as **Custom connection** with the endpoint URL and authentication.
+
+`stop`, `extraBody` and `extraHeaders` from the contract are not supported in this version.
 
 ## 5. Build & Package for ODC
 

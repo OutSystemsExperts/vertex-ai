@@ -48,3 +48,5 @@ secrets.json
 *.p12
 *.pem
 /specs
+/ExampleProxyForODC
+ExampleProxyForODC.oml
